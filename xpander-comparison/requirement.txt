@@ -1,0 +1,11 @@
+xpander-sdk
+openai
+python-dotenv
+pyyaml
+colorama
+requests
+colorlog
+pandas
+jupyter
+seaborn
+matplotlib

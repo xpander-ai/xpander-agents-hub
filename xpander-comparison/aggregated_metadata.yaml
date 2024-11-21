@@ -1,0 +1,7 @@
+- openai:
+    with_xpander:
+      agent_think_finished: false
+      input_tokens: 1102253
+      latency: 843.1370918750763
+      number_of_steps: 30
+      output_tokens: 28789
