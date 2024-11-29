@@ -9,3 +9,4 @@ boto3
 openai
 anthropic
 python-dotenv
+loguru

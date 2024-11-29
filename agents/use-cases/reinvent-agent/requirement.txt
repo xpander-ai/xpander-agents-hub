@@ -1,0 +1,13 @@
+xpander-sdk
+openai
+python-dotenv
+pyyaml
+colorama
+colorlog
+streamlit>=1.30.0
+tldextract>=5.1.1
+requests>=2.31.0
+streamlit-tags>=1.2.8
+qrcode
+loguru
+tqdm
