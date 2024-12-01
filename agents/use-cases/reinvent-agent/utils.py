@@ -17,6 +17,7 @@ import qrcode
 import base64
 from io import BytesIO
 import yaml
+
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from agents_util.utils.generic import *
@@ -294,8 +295,9 @@ def add_color_to_links(html_text: str, color: str = "#cc43ff") -> str:
 
 
 
-def create_gmail_message(from_email, to_email, subject, link, company_name):
-    html_template = email_template.format(link=link, company_name=company_name)
+def create_gmail_message(from_email, to_email, subject, link, company_name, client_name):
+    html_template = email_template.format(link=link, company_name=company_name, subject=subject, client_name=client_name)
+    return html_template
     # Create a MIMEText object with HTML content
     message = MIMEText(html_template, 'html')
     

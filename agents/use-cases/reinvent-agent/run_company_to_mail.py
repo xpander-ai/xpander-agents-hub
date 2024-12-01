@@ -15,7 +15,7 @@ from utils import *
 load_dotenv()
 xpanderClient = XpanderClient(api_key=os.environ.get("XPANDER_API_KEY", ""))
 xpander_agent: Agent = xpanderClient.agents.get(agent_id=os.environ.get("XPANDER_AGENT_ID", ""))
-
+    
 async def run_company_query(company, company_domain, xpander_employee_email=None, email=None, client_name=None):
     """
     Executes a comprehensive analysis of a company using various agents and tools.
@@ -49,14 +49,23 @@ async def run_company_query(company, company_domain, xpander_employee_email=None
 
     upload_s3_response, _ = handler.agent_inference(message=[{"role": "user", "content": f"please upload the following html content to s3: '{basic_html}'"}], tmp_tools=tools, tool_choice="required")
     escaped_html = json.dumps(html_content)[1:-1]  # Remove the outer quotes that dumps adds
+    
     upload_s3_response.choices[0].message.tool_calls[0].function.arguments = '{{"bodyParams":{{"content":"{}", "file_type": "html"}},"queryParams":{{}},"pathParams":{{}}}}'.format(escaped_html)
+    
     s3_results, tools = get_all_tools_responses(xpander_agent, upload_s3_response)
+    
     presigned_url = s3_results['uploadToS3']['presigned_url']
     qr_code_base64 = generate_qr_code(presigned_url)
 
     email_response, _ = handler.agent_inference(message=[{"role": "user", "content": send_email_prompt}], tmp_tools=tools, tool_choice="required")
-    gmail_raw = create_gmail_message(from_email=xpander_employee_email, to_email=email, subject='Welcome to xpander.ai booth', link=presigned_url, company_name=company)
-    email_response.choices[0].message.tool_calls[0].function.arguments = '{{"bodyParams":{{"raw":"{}"}},"queryParams":{{}},"pathParams":{{"userEmail":"me"}}}}'.format(gmail_raw)
+    
+    mail_subject ='Thank you for visiting xpander.ai booth re:Invent 2024'
+    if client_name:
+        mail_subject = f"{client_name}, {mail_subject}"
+    
+    email_html_content = create_gmail_message(from_email=xpander_employee_email, to_email=email, subject=mail_subject, link=presigned_url, company_name=company, client_name=client_name if client_name else "")
+    
+    email_response.choices[0].message.tool_calls[0].function.arguments = json.dumps({"bodyParams":{"subject":mail_subject,"to":[email],"body_html":email_html_content},"queryParams":{},"pathParams":{}})
     _, tools = get_all_tools_responses(xpander_agent, email_response)  
     logger.info("Finished Company Collaboration Email")
     

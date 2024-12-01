@@ -22,6 +22,11 @@ cd [repository-name]
 pip install -r requirements.txt
 ```
 
+2.5. Install wkhtmltopdf
+```base
+brew install wkhtmltopdf
+```
+
 ## Configuration
 
 1. Create a `.env` file in the root directory of the project

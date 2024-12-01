@@ -92,19 +92,19 @@ email_template = """
             box-shadow: 0 2px 3px rgba(0,0,0,0.1);
         }}
         h1 {{
-            color: #640b86;
+            color: #753cff;
             text-align: center;
         }}
         p {{
             line-height: 1.6;
         }}
         a {{
-            color: #640b86;
+            color: #753cff;
             text-decoration: none;
         }}
         .button {{
             display: inline-block;
-            background-color: #640b86;
+            background-color: #753cff;
             color: #000;
             font-weight: bold;
             padding: 12px 25px;
@@ -133,19 +133,25 @@ email_template = """
 <body>
     <div class="container">
         <!-- Beautiful Headline -->
-        <h1>Welcome to xpander.ai!</h1>
+        <h1>Hi, {client_name}</h1>
 
         <!-- Thank You Message -->
-        <p>Thank you for visiting the <a href="https://xpander.ai">xpander.ai</a> booth!</p>
-        <p>We are excited to share with you the generated summary for <strong>{company_name}</strong>. Please click the button below to view your personalized summary.</p>
+        <p>I've created a summary of how <a href="https://xpander.ai" target="_blank">xpander.ai</a> and {company_name} can partner together</p>
 
         <!-- Link to the Generated Summary -->
-        <a href="{link}" class="button">View Your Summary</a>
+        <a href="{link}" class="button" style="color: #fff">Access the report</a>
 
+        <p>Learn More About <a href="https://xpander.ai" target="_blank">xpander.ai</a>:</p>
+        <ul>
+            <li><a href="https://xpander.ai" target="_blank">xpander.ai</a> Agentic Interfaces Benchmarks (Source: Nvidia): <a href="https://developer.nvidia.com/blog/spotlight-xpander-ai-equips-nvidia-nim-applications-with-agentic-tools/" target="_blank">https://developer.nvidia.com/blog/spotlight-xpander-ai-equips-nvidia-nim-applications-with-agentic-tools/</a>
+            <li>Agent Graph System Overview (Source: Venture Beat): <a href="https://venturebeat.com/ai/xpander-ais-agent-graph-system-makes-ai-agents-more-reliable-by-giving-them-info-step-by-step/" target="_blank">https://venturebeat.com/ai/xpander-ais-agent-graph-system-makes-ai-agents-more-reliable-by-giving-them-info-step-by-step/</a>
+            <li>Deep Dive: Agent Graph System (Source: <a href="https://xpander.ai" target="_blank">xpander.ai</a>): <a href="https://xpander.ai/2024/11/20/announcing-agent-graph-system/" target="_blank">https://xpander.ai/2024/11/20/announcing-agent-graph-system/</a>
+            <li>Jupiter notebooks or AI Agents built with xpander.sdk on multiple LLM Providers (Source: Github): <a href="https://github.com/xpander-ai/xpander-agents-hub/tree/main/agents/examples/model-providers" target="_blank">https://github.com/xpander-ai/xpander-agents-hub/tree/main/agents/examples/model-providers</a>
+        </ul>
 
         <!-- Footer -->
         <div class="footer">
-            &copy; 2023 xpander.ai. All rights reserved.
+            &copy; 2024 <a href="https://xpander.ai" target="_blank">xpander.ai</a>. All rights reserved.
         </div>
     </div>
 </body>
