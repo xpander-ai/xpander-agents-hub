@@ -27,6 +27,11 @@ async def main():
             placeholder="Enter company name"
         )
         
+        company_domain = st.text_input(
+            "Company Domain",
+            placeholder="company.com"
+        )
+        
         xpander_email = st.text_input(
             "Xpander Employee Email",
             placeholder="employee@xpander.ai"
@@ -48,7 +53,7 @@ async def main():
     status_container = st.empty()
     log_container = st.empty()
     
-    if submit_button and company:
+    if submit_button and company and company_domain:
         status_container.info("Starting analysis...")
         
         try:
@@ -80,6 +85,7 @@ async def main():
             # Run the analysis
             qr_code_base64 = await run_company_query(
                 company=company,
+                company_domain=company_domain,
                 xpander_employee_email=xpander_email if xpander_email else None,
                 email=email if email else None,
                 client_name=client_name if client_name else None
@@ -90,15 +96,22 @@ async def main():
             
             status_container.success("Analysis completed successfully!")
             
-            # Display QR code
+            _, col2, _ = st.columns(3)
+            
+            # Display QR code in the middle column
             if qr_code_base64:
-                st.image(qr_code_base64, caption="Scan this QR code to view the analysis")
+                with col2:
+                    st.image(qr_code_base64, caption="Scan this QR code to view the analysis", width=300)
+            
             
         except Exception as e:
             status_container.error(f"An error occurred: {str(e)}")
             
     elif submit_button:
-        st.warning("Please enter a company name")
+        if not company:
+            st.warning("Please enter a company name")
+        if not company_domain:
+            st.warning("Please enter a company domain")
 
 if __name__ == "__main__":
     asyncio.run(main())
