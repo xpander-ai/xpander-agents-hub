@@ -8,4 +8,5 @@ colorlog
 pandas
 jupyter
 seaborn
+loguru
 matplotlib
