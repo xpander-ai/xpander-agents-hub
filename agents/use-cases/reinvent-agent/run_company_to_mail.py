@@ -54,7 +54,13 @@ async def run_company_query(company, company_domain, xpander_employee_email=None
     
     s3_results, tools = get_all_tools_responses(xpander_agent, upload_s3_response)
     
+    # if not "uploadToS3" in s3_results: # in case of Pg switch
+    #     upload_s3_response, _ = handler.agent_inference(message=[{"role": "user", "content": f"please upload the following html content to s3: '{basic_html}'"}], tmp_tools=tools, tool_choice="required")
+    #     upload_s3_response.choices[0].message.tool_calls[0].function.arguments = '{{"bodyParams":{{"content":"{}", "file_type": "html"}},"queryParams":{{}},"pathParams":{{}}}}'.format(escaped_html)
+    #     s3_results, tools = get_all_tools_responses(xpander_agent, upload_s3_response)
+    
     presigned_url = s3_results['uploadToS3']['presigned_url']
+    presigned_url += "/render"
     qr_code_base64 = generate_qr_code(presigned_url)
 
     email_response, _ = handler.agent_inference(message=[{"role": "user", "content": send_email_prompt}], tmp_tools=tools, tool_choice="required")

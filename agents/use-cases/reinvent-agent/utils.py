@@ -17,6 +17,8 @@ import qrcode
 import base64
 from io import BytesIO
 import yaml
+from bs4 import BeautifulSoup
+
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
@@ -29,6 +31,30 @@ from tqdm import tqdm
 
 OUTPUT_PATH = Path(__file__).parent / "collaboration_file.html"
 TEMPLATE_PATH = Path(__file__).parent / 'reInvent_template.html'
+
+def close_unclosed_a_tags(html: str) -> str:
+    """
+    Takes an HTML string, finds unclosed <a> tags, and closes them.
+    
+    Args:
+        html (str): The input HTML string.
+        
+    Returns:
+        str: The modified HTML string with all <a> tags properly closed.
+    """
+    soup = BeautifulSoup(html, 'html.parser')
+
+    # Iterate through all <a> tags
+    for a_tag in soup.find_all('a'):
+        # Check if the <a> tag has no closing tag
+        if not a_tag.find_next_sibling(text=False):
+            # Close the tag by wrapping it with itself
+            if not a_tag.contents:
+                a_tag.append('')
+            a_tag.insert_after(soup.new_tag('a'))
+
+    # Return the corrected HTML
+    return str(soup)
 
 def split_companies_information(retrieval_tool_results, company):
     xpander_ai_info = ""
@@ -224,9 +250,9 @@ def create_html_by_template(xpander_email, company_name, client_name, agent_for_
         }
         
         for placeholder, value in replacements.items():
-            html_content = html_content.replace(placeholder, value)
+            html_content = html_content.replace(placeholder, value.replace("Xpander",'xpander'))
             
-        return html_content
+        return close_unclosed_a_tags(html_content)
         
     except FileNotFoundError:
         logger.error(f"Template file not found at {TEMPLATE_PATH}")

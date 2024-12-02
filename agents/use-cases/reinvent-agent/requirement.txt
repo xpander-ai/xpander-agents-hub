@@ -11,3 +11,4 @@ streamlit-tags>=1.2.8
 qrcode
 loguru
 tqdm
+bs4
