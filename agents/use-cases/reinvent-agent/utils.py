@@ -337,7 +337,7 @@ def create_gmail_message(from_email, to_email, subject, link, company_name, clie
 
     return raw_message
 
-def get_all_tools_responses(xpander_agent, tool_select_response):
+def get_all_tools_responses(xpander_agent, tool_select_response, get_next_tools=True):
     tool_calls = XpanderClient.extract_tool_calls(tool_select_response.model_dump())
     responses = {}
     
@@ -355,6 +355,8 @@ def get_all_tools_responses(xpander_agent, tool_select_response):
                     tool_response = future.result()
                     responses[tool_response.function_name] =  tool_response.result
                     pbar.update(1)
-
-    tools = xpander_agent.get_tools()
+    if get_next_tools:
+        tools = xpander_agent.get_tools()
+    else:
+        tools = []
     return responses, tools

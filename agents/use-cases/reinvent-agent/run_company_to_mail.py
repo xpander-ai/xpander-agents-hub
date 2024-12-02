@@ -14,7 +14,7 @@ from utils import *
 
 load_dotenv()
 xpanderClient = XpanderClient(api_key=os.environ.get("XPANDER_API_KEY", ""))
-xpander_agent: Agent = xpanderClient.agents.get(agent_id=os.environ.get("XPANDER_AGENT_ID", ""))
+
     
 async def run_company_query(company, company_domain, xpander_employee_email=None, email=None, client_name=None):
     """
@@ -28,7 +28,7 @@ async def run_company_query(company, company_domain, xpander_employee_email=None
         dict: Metadata containing analysis results, including token counts,
              number of steps, and execution time
     """
-    
+    xpander_agent: Agent = xpanderClient.agents.get(agent_id=os.environ.get("XPANDER_AGENT_ID", ""))
     tools = xpander_agent.get_tools()
     handler = OpenAIHandler(model_name="gpt-4o-mini")
     topic_response, _ = handler.agent_inference(message=[{"role": "user", "content": system_prompt_graph_decision}], tmp_tools=tools, tool_choice="required")
@@ -53,12 +53,7 @@ async def run_company_query(company, company_domain, xpander_employee_email=None
     upload_s3_response.choices[0].message.tool_calls[0].function.arguments = '{{"bodyParams":{{"content":"{}", "file_type": "html"}},"queryParams":{{}},"pathParams":{{}}}}'.format(escaped_html)
     
     s3_results, tools = get_all_tools_responses(xpander_agent, upload_s3_response)
-    
-    # if not "uploadToS3" in s3_results: # in case of Pg switch
-    #     upload_s3_response, _ = handler.agent_inference(message=[{"role": "user", "content": f"please upload the following html content to s3: '{basic_html}'"}], tmp_tools=tools, tool_choice="required")
-    #     upload_s3_response.choices[0].message.tool_calls[0].function.arguments = '{{"bodyParams":{{"content":"{}", "file_type": "html"}},"queryParams":{{}},"pathParams":{{}}}}'.format(escaped_html)
-    #     s3_results, tools = get_all_tools_responses(xpander_agent, upload_s3_response)
-    
+
     presigned_url = s3_results['uploadToS3']['presigned_url']
     presigned_url += "/render"
     qr_code_base64 = generate_qr_code(presigned_url)
@@ -72,7 +67,9 @@ async def run_company_query(company, company_domain, xpander_employee_email=None
     email_html_content = create_gmail_message(from_email=xpander_employee_email, to_email=email, subject=mail_subject, link=presigned_url, company_name=company, client_name=client_name if client_name else "")
     
     email_response.choices[0].message.tool_calls[0].function.arguments = json.dumps({"bodyParams":{"subject":mail_subject,"to":[email],"body_html":email_html_content},"queryParams":{},"pathParams":{}})
-    _, tools = get_all_tools_responses(xpander_agent, email_response)  
+    _, tools = get_all_tools_responses(xpander_agent, email_response)
     logger.info("Finished Company Collaboration Email")
-    
+
     return qr_code_base64
+
+
