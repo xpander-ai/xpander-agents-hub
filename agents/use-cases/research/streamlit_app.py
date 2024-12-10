@@ -105,6 +105,13 @@ def main():
             font-weight: bold;
             margin: 0;
         }
+        .subtitle-text {
+            color: #888888;
+            font-size: 16px;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        
         </style>
     """, unsafe_allow_html=True)
 
@@ -115,10 +122,10 @@ def main():
             <img class="logo-img" src="data:image/png;base64,{get_base64_encoded_image(APP_ICON)}">
             <h1 class="title-text">Xpander AI Research Assistant</h1>
         </div>
+        <p class="subtitle-text">Your intelligent research companion powered by AI. Get comprehensive PDF reports on any topic from multiple sources.</p>
         """,
         unsafe_allow_html=True
     )
-
     # Custom CSS to ensure purple accents and dark theme
     st.markdown("""
         <style>
@@ -159,14 +166,15 @@ def main():
     
     # Input section with query and button
     with input_container:
-        col1, col2 = st.columns([3, 1])
+        col1, col2 = st.columns([4, 1])
         with col1:
             query = st.text_input(
-                "What would you like to research?",
+                "## What would you like to research?",
                 placeholder="Enter your research topic...",
                 disabled=st.session_state.is_processing
             )
         with col2:
+            st.write("  ")
             start_button = st.button(
                 "Start Research",
                 disabled=st.session_state.is_processing or not query,
@@ -189,6 +197,13 @@ def main():
 
                 # Run the research with progress updates
                 result = run_research_with_progress(query, progress_bar, status_text)
+                
+                st.session_state.research_history.append({
+                    'query': query,
+                    'result': result,
+                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'pdf_link': result.split("Final Answer: ")[-1].strip() if "http" in result and ".pdf" in result else None
+                })
                 
                 # Display results after completion
                 with results_container:

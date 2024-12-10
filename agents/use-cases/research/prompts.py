@@ -19,7 +19,7 @@ You have access to the following tools to collect data on the topic:
    - **Tavily**: conduct a search on the topic and get a summary of the relevant information.
    - **Arxiv**: Fetch recent articles within the last year on the topic focusing on their introductory sections.
    - **Perplexity**: Gather additional, complementary data that may not appear in Tavily or Arxiv results.
-   - **LinkedIn**: Search for posts from professionals and organizations that provide real-world insights and can enrich the report.
+   - **LinkedIn**: Search for posts from the last year from professionals and organizations that provide real-world insights and can enrich the report.
 Use each tool to gather data relevant to the user’s query. after all tools are used you must create a PDF report using the Markdown-to-PDF tool the expected output is a link to the PDF report.
 
 These are the strict rules:
@@ -53,7 +53,8 @@ Your task:
 3. You must return your answer as a tool_call with the function name and relevant arguments.
 4. If the planer explain about the error and how to fix it, you should fix the last tool call parameters and return the new tool call.
 5. when you creating the final report you must used all the previews information that collected in the parserAgent response steps.
-6. you MUST use each tool only once if tool call is success and you MUST use all the tools to create the final report.
+6. you MUST use each tool only once if tool call is success 
+7. you MUST use all the tools to create the final report.
 here the required user topic: {user_query}
 '''
 
@@ -61,7 +62,7 @@ parser_task_prompt = '''
 as part of the multi agent pipeline you are the parser agent and your task is to get the current step plan and the response from the tool that executed for this plan and parse this response to fulfill the plan.
 your response should contains all the relevent details for the report without missing information.
 your response should contains as much details as you can for creating the final report.
-the report must be informative and clear as much as you can and stick with the plan.
+the report must be informative and up to date and clear as much as you can and stick with the plan.
 
 These are the strict rules:
 1. when you creating the final report you must use all the information you got until now on the user topic {user_query}.
