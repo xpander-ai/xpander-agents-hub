@@ -34,8 +34,8 @@ def update_progress_for_tool(tool_name: str, status_text, progress_bar):
     tool_progress = {
         "tavily-insights-fetchInsightsFromTavilyAI": ("🌐 Searching web sources...", 30),
         "ArxivResearchPaperQueryRetrieveArticlesBySearchOrId": ("📚 Analyzing academic papers...", 50),
-        "LinkedInPostManagementSearchPostsByCriteria": ("👥 Gathering expert insights...", 70),
-        "PerplexityChatCompletionCreateAIGeneratedResponse": ("🤖 Processing with AI...", 80),
+        "PerplexityChatCompletionCreateAIGeneratedResponse": ("🤖 Processing with AI...", 70),
+        "LinkedInPostManagementSearchPostsByCriteria": ("👥 Gathering expert insights...", 80),
         "pdf-operations-convertMarkdownToPDF": ("📝 Creating PDF report...", 90)
     }
     
@@ -81,7 +81,7 @@ def main():
     logo_im = Image.open(APP_ICON)
     logo_im = logo_im.resize((32, 32), Image.Resampling.LANCZOS)
     st.set_page_config(
-        page_title="Xpander AI Research Assistant",
+        page_title="Xpander AI Research Agent",
         page_icon=logo_im,
         layout="wide"
     )
@@ -120,7 +120,7 @@ def main():
         f"""
         <div class="header-container">
             <img class="logo-img" src="data:image/png;base64,{get_base64_encoded_image(APP_ICON)}">
-            <h1 class="title-text">Xpander AI Research Assistant</h1>
+            <h1 class="title-text">Xpander AI Research Agent</h1>
         </div>
         <p class="subtitle-text">Your intelligent research companion powered by AI. Get comprehensive PDF reports on any topic from multiple sources.</p>
         """,
@@ -209,11 +209,8 @@ def main():
                 with results_container:
                     st.success("Research completed successfully!")
                     st.markdown("### Results")
+                    st.markdown("Your report is ready to download:")
                     st.markdown(result)
-                    
-                    if "http" in result and ".pdf" in result:
-                        pdf_link = result.split("Final Answer: ")[-1].strip()
-                        st.markdown(f"[Download Full Report]({pdf_link})")
                 
             except Exception as e:
                 status_text.text("❌ Error occurred")

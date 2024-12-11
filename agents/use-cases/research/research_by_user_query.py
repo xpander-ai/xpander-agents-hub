@@ -56,7 +56,7 @@ def run_research_agent(user_query: str, progress_callback=None):
     shared_memory.add_message(planner_response.choices[0].message.content,role="assistant",agent_name="PlannerAgent")
     logger.info("Planner Response: %s", planner_response.choices[0].message.content)
     
-    while not planner_agent.finished():
+    while True:
         try:
             
             tool_selector_response = tool_selector_agent.invoke_llm(memory=tool_selector_agent.local_memory+shared_memory.get_memory(),tools=tools)
@@ -69,6 +69,15 @@ def run_research_agent(user_query: str, progress_callback=None):
                     if progress_callback:
                         progress_callback(tool_call.name)
                     
+                    # Check for completion
+                    if tool_call.name == "pdf-operations-convertMarkdownToPDF":
+                        if isinstance(tool_response.result, dict) and 'presigned_url' in tool_response.result:
+                            logger.info("PDF generation complete! URL: %s", tool_response.result['presigned_url'])
+                            return tool_response.result['presigned_url']
+                        else:
+                            logger.error("Unexpected tool response format: %s", tool_response.result)
+                            return None
+
                     selected_tool_params = json.dumps(tool_selector_response.model_dump()['choices'][0]['message']['tool_calls'][i])
                     selected_tool_data = {
                         "selected_tool": tool_call.name,
@@ -97,11 +106,10 @@ def run_research_agent(user_query: str, progress_callback=None):
         shared_memory.add_message(planner_response.choices[0].message.content,role="assistant",agent_name="PlannerAgent")
         logger.info("Planner response: %s", planner_response.choices[0].message.content)
     
-        planner_agent.run_post_processing(planner_response.choices[0].message.content)
 
 
-    logger.info("Pipeline execution complete!")
-    return shared_memory.get_memory()[-1]['content']
+
+
 
     
     

@@ -30,15 +30,11 @@ These are the strict rules:
 5. Return only the next Plan step (i+1) you generated and do not mention all the steps list until now. you'll get the conversation history Plan steps [1,...,i-1] and API responses after parsing, you will use it to generate the next step.
 6. If the the API request failed, return how you recommend to handle this error in the next retry of the tool calling.
 7. you must return only one step in each call! never return the full step pipeline in one iteration.
-8. after you collect all the information you must create the final PDF report using the Markdown-to-PDF tool.
-9. You MUST return the Final Answer after using all the tools: Tavily, Arxiv, Perplexity and LinkedIn and Markdown-to-PDF tool !
+8. after all data collected you must create the final PDF report using the Markdown-to-PDF tool.
 
 this is the expected output template:
 if the query has not been fulfilled:
 Plan step (i+1): [the next step of your plan for how to solve the query].
-
-if all the data is collected and 'Markdown-to-PDF' tool is used and the Parser returned link to the PDF report you MUST return the final answer with the link to the PDF report that got from the Parser.
-you MUST return by the following template: Final Answer: [link to the PDF report you got from the Parser].
 
 please start with the first step and return only one step in each call!
 your research on the topic {user_query} begin now...
@@ -68,11 +64,11 @@ These are the strict rules:
 1. when you creating the final report you must use all the information you got until now on the user topic {user_query}.
 2. you must return the report as human readable text that include all the information.
 3. Confirm that the report comprehensively answers the user’s query and provides an in-depth view based on the gathered data.
-4. Verify that all sections flow logically, contributing to a unified, fact-based narrative without tool-specific attributions.
+4. Verify that all sections flow logically, contributing to a unified, fact-based narrative without tool specific attributions - DO NOT mention in the report the tools you used.
 5. Ensure that the report includes a structured introduction and conclusion, and that it is cohesive, informative, and thoroughly addresses the main topic.
 6. Do NOT add your own words to the report!  you must use only the information you got from the tools.
 7. Ensure that the report is formatted correctly and is easy to read and the main title is bold and larger than the other titles.
-8. after you use 'Markdown-to-PDF' tool you must tell the planner agent that you finished and return only the link to the PDF report that got from the tool. DO NOT RETURN ANYTHING ELSE!
+8. the title of the report should be short and concise and related to the user topic {user_query}.
 
 here the required user topic: {user_query}
 '''

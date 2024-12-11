@@ -16,7 +16,7 @@ class SharedMemory:
         return self.memory
 
 class PlannerAgent:
-    def __init__(self, handler, tools: list, task_message: str, system_message: str, finish_message: str = "Final Answer"):
+    def __init__(self, handler, tools: list, task_message: str, system_message: str):
         self.handler = handler
         self.tools = tools
         self.task_message = task_message
@@ -25,11 +25,9 @@ class PlannerAgent:
             {"role": "system", "content": system_message},
             {"role": "user", "content": task_message},
         ]
-        self.finish_message = finish_message
-        self.is_finished = False
         self.step_number = 1
 
-    def invoke_llm(self, memory, tools=None, model=OpenAISupportedModels.GPT_4_O, max_tokens=16384):
+    def invoke_llm(self, memory, tools=None, model=OpenAISupportedModels.GPT_4_O, max_tokens=4096):
         try:
             response = self.handler.chat.completions.create(
                 model=model,
@@ -38,19 +36,11 @@ class PlannerAgent:
                 tool_choice="none",
                 max_tokens=max_tokens,
                 temperature=0.0,
-                top_p=1
             )
             return response
         except Exception as e:
             raise RuntimeError(f"Error invoking LLM: {e}")
         
-    def run_post_processing(self, response: str) -> str:
-        if re.search(self.finish_message, response):
-            self.is_finished = True 
-        return response
-
-    def finished(self) -> bool:
-        return self.is_finished
 
 class ToolSelectorAgent:
     def __init__(self, handler, tools: list, task_message: str, system_message: str):
@@ -64,7 +54,7 @@ class ToolSelectorAgent:
         ]
         self.selected_tools = []
 
-    def invoke_llm(self, memory, tools=None, model=OpenAISupportedModels.GPT_4_O, max_tokens=16384):
+    def invoke_llm(self, memory, tools=None, model=OpenAISupportedModels.GPT_4_O, max_tokens=4096):
         try:                                
             response = self.handler.chat.completions.create(
                 model=model,
@@ -74,7 +64,6 @@ class ToolSelectorAgent:
                 tool_choice="required",
                 max_tokens=max_tokens,
                 temperature=0.0,
-                top_p=1
             )
             return response
         except Exception as e:
