@@ -1,6 +1,6 @@
 import streamlit as st
 import time
-from research_by_user_query import run_research_agent
+from research_by_user_query import research_by_user_query_parallel
 import logging
 from datetime import datetime
 from PIL import Image
@@ -29,40 +29,32 @@ def display_research_history():
                 if 'pdf_link' in item:
                     st.markdown(f"[View Full Report]({item['pdf_link']})")
 
-def update_progress_for_tool(tool_name: str, status_text, progress_bar):
-    """Update progress based on the current tool being used"""
-    tool_progress = {
-        "tavily-insights-fetchInsightsFromTavilyAI": ("🌐 Searching web sources...", 30),
-        "ArxivResearchPaperQueryRetrieveArticlesBySearchOrId": ("📚 Analyzing academic papers...", 50),
-        "PerplexityChatCompletionCreateAIGeneratedResponse": ("🤖 Processing with AI...", 70),
-        "LinkedInPostManagementSearchPostsByCriteria": ("👥 Gathering expert insights...", 80),
-        "pdf-operations-convertMarkdownToPDF": ("📝 Creating PDF report...", 90)
-    }
-    
-    if tool_name in tool_progress:
-        message, progress = tool_progress[tool_name]
-        status_text.text(message)
-        progress_bar.progress(progress)
-        time.sleep(0.5)
-
 def run_research_with_progress(query: str, progress_bar, status_text):
     """Run research with synchronized progress updates"""
     try:
         # Initial research setup
         status_text.text("🤔 Planning research strategy...")
         progress_bar.progress(10)
-        time.sleep(1)
         
-        # Create progress callback
         def progress_callback(tool_name):
-            update_progress_for_tool(tool_name, status_text, progress_bar)
+            """Callback function to update progress based on current tool"""
+            # Define progress stages with specific delays for each tool
+            tool_progress = {
+                "initialization": ("🚀 Initializing research...", 20, 1),  
+                "research": ("🔍 Gathering information from multiple sources...", 60, 1),  
+                "report_creation": ("📊 Generating report...", 80, 1), 
+                "pdf-operations-convertMarkdownToPDF": ("📝 Creating PDF report...", 90, 1),  
+                "completion": ("✅ Research completed!", 100, 1)  
+            }
+            
+            if tool_name in tool_progress:
+                message, progress, delay = tool_progress[tool_name]
+                status_text.text(message)
+                progress_bar.progress(progress)
+                time.sleep(delay)  # Apply specific delay for each tool
         
         # Run research with progress updates
-        result = run_research_agent(query, progress_callback=progress_callback)
-        
-        # Complete
-        status_text.text("✅ Research completed!")
-        progress_bar.progress(100)
+        result = research_by_user_query_parallel(query, progress_callback=progress_callback)
         return result
         
     except Exception as e:
