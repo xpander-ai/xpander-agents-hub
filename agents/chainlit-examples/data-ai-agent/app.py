@@ -18,13 +18,15 @@ import time
 # ------------------------------
 # 0) Constants & Globals
 # ------------------------------
+KNOWLEDGE_REPO_DIR = "knowledge_repo"
+
+# Now we store the DB/cache files INSIDE the knowledge_repo
+EMBED_CACHE_FILE = os.path.join(KNOWLEDGE_REPO_DIR, "embedding_cache.json")
+VECTOR_DB_FILE = os.path.join(KNOWLEDGE_REPO_DIR, "vector_db.json")
+
 PRIMARY_EMBED_MODEL = "text-embedding-3-large"
 FALLBACK_EMBED_MODEL = "text-embedding-ada-002"
 TOKEN_THRESHOLD = 4000
-
-EMBED_CACHE_FILE = "embedding_cache.json"
-VECTOR_DB_FILE = "vector_db.json"
-KNOWLEDGE_REPO_DIR = "knowledge_repo"
 
 MSG_LARGE = (
     "The result was too large and has been stored in the vector DB. "
@@ -39,6 +41,10 @@ VECTOR_DB: List[Dict[str, Any]] = []
 # 0.1) Embedding & VectorDB Persistence
 # ------------------------------
 def load_embedding_cache() -> Dict[str, List[float]]:
+    # Ensure knowledge_repo folder exists before reading
+    if not os.path.exists(KNOWLEDGE_REPO_DIR):
+        os.makedirs(KNOWLEDGE_REPO_DIR, exist_ok=True)
+
     if os.path.exists(EMBED_CACHE_FILE):
         try:
             with open(EMBED_CACHE_FILE, "r", encoding="utf-8") as f:
@@ -50,6 +56,10 @@ def load_embedding_cache() -> Dict[str, List[float]]:
     return {}
 
 def save_embedding_cache(cache_data: Dict[str, List[float]]):
+    # Ensure knowledge_repo folder exists before writing
+    if not os.path.exists(KNOWLEDGE_REPO_DIR):
+        os.makedirs(KNOWLEDGE_REPO_DIR, exist_ok=True)
+
     try:
         with open(EMBED_CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(cache_data, f)
@@ -57,6 +67,10 @@ def save_embedding_cache(cache_data: Dict[str, List[float]]):
         print(f"[WARN] Could not save embedding cache: {e}")
 
 def load_vector_db():
+    # Ensure knowledge_repo folder exists before reading
+    if not os.path.exists(KNOWLEDGE_REPO_DIR):
+        os.makedirs(KNOWLEDGE_REPO_DIR, exist_ok=True)
+
     if os.path.exists(VECTOR_DB_FILE):
         try:
             with open(VECTOR_DB_FILE, "r", encoding="utf-8") as f:
@@ -68,6 +82,10 @@ def load_vector_db():
     return []
 
 def save_vector_db(vdb: List[Dict[str, Any]]):
+    # Ensure knowledge_repo folder exists before writing
+    if not os.path.exists(KNOWLEDGE_REPO_DIR):
+        os.makedirs(KNOWLEDGE_REPO_DIR, exist_ok=True)
+
     try:
         with open(VECTOR_DB_FILE, "w", encoding="utf-8") as f:
             json.dump(vdb, f, indent=2)
@@ -99,6 +117,9 @@ def count_tokens(text: str, model_name: str = "gpt-4o") -> int:
 # 2) RAG: Embedding + Vector Search
 # ------------------------------
 def embed_text(text: str, max_retries=3) -> List[float]:
+    """
+    Returns the embedding for 'text', caching to avoid repeat calls.
+    """
     if text in EMBED_CACHE:
         return EMBED_CACHE[text]
 
@@ -121,27 +142,75 @@ def embed_text(text: str, max_retries=3) -> List[float]:
     save_embedding_cache(EMBED_CACHE)
     return []
 
+def _generate_chunk_id(meta: dict, chunk_index: int) -> str:
+    """
+    Create a unique, human-friendly ID for each chunk:
+      - If type == "youtube", e.g. "youtube_k82RwXqZHY8_chunk_000"
+      - If type == "file", e.g. "file_nvidia_keynote_transcript_txt_chunk_003"
+    """
+    if meta["type"] == "youtube":
+        vid = meta.get("video_id", "unknown")
+        return f"youtube_{vid}_chunk_{chunk_index:03d}"
+    else:
+        # For files, maybe remove dots from the filename
+        safe_name = meta["filename"].replace(".", "_")
+        return f"file_{safe_name}_chunk_{chunk_index:03d}"
+
+def parse_source_to_meta(source: str) -> dict:
+    """
+    If 'source' is a YouTube URL, parse out the video_id. 
+    Otherwise assume it's a local file name.
+    """
+    source = source.strip()
+    if source.startswith("http") or "youtube.com" in source or "youtu.be" in source:
+        # Attempt to parse a YT ID
+        if "youtube.com/watch?v=" in source:
+            video_id = source.split("v=")[-1].split("&")[0]
+        elif "youtu.be/" in source:
+            video_id = source.split("/")[-1]
+        else:
+            video_id = "unknown"
+
+        return {
+            "type": "youtube",
+            "video_url": source,
+            "video_id": video_id
+        }
+    else:
+        # Otherwise, assume it's a local file name
+        return {
+            "type": "file",
+            "filename": source
+        }
+
 def add_text_to_vector_db(response_text: str, source: str):
     """
     Splits 'response_text' into ~500-token chunks, embed each chunk,
-    and appends to VECTOR_DB. Then persist to disk.
+    and appends to VECTOR_DB with a robust "meta" object.
     """
     chunk_size = 500
     enc = tiktoken.encoding_for_model("gpt-4o")
     tokens = enc.encode(response_text)
 
+    meta = parse_source_to_meta(source)
+
     new_entries = []
+    # We'll chunk the text into segments of ~500 tokens each
+    # and create an ID + meta for each chunk
     for i in range(0, len(tokens), chunk_size):
         chunk = tokens[i : i + chunk_size]
         text_chunk = enc.decode(chunk)
         embedding = embed_text(text_chunk)
-        entry_id = f"{source}-{i}"
-        new_entries.append({
-            "id": entry_id,
-            "source": source,
+
+        chunk_id = _generate_chunk_id(meta, i // chunk_size)
+
+        entry = {
+            "id": chunk_id,
+            "meta": meta,       # store info about whether it's youtube or file
             "text": text_chunk,
             "embedding": embedding
-        })
+        }
+        new_entries.append(entry)
 
     VECTOR_DB.extend(new_entries)
     save_vector_db(VECTOR_DB)
@@ -154,6 +223,7 @@ def vector_search(query: str, top_k: int = 3) -> List[str]:
         return ["Error creating query embedding."]
 
     import numpy as np
+
     def cos_sim(a, b):
         a_np = np.array(a)
         b_np = np.array(b)
@@ -168,14 +238,19 @@ def vector_search(query: str, top_k: int = 3) -> List[str]:
         if not emb:
             continue
         score = cos_sim(query_emb, emb)
-        scored.append((score, entry["text"], entry["source"]))
+        scored.append((score, entry["text"], entry["id"], entry["meta"]))
 
+    # sort descending by score
     scored.sort(key=lambda x: x[0], reverse=True)
     top_results = scored[:top_k]
 
     final_responses = []
-    for score, text_chunk, source in top_results:
-        snippet = f"[From {source} | Score={score:.4f}] {text_chunk}"
+    for (score, text_chunk, chunk_id, meta) in top_results:
+        # We'll show the chunk ID & meta in the snippet
+        snippet = (
+            f"[ChunkID={chunk_id}, Score={score:.4f}, Type={meta['type']}] "
+            f"{text_chunk}"
+        )
         final_responses.append(snippet)
 
     return final_responses
@@ -251,7 +326,6 @@ def write_file(file_path: str, content: Union[str, dict, list], file_type: str) 
     if not is_within_current_directory(file_path):
         return {"error": "Access outside the current directory is not allowed."}
     try:
-        # Replace placeholder with real transcript if found in session
         from chainlit import user_session
         MSG_PLACEHOLDER = "The transcript content will be fetched and written here."
         if isinstance(content, str):
@@ -260,7 +334,6 @@ def write_file(file_path: str, content: Union[str, dict, list], file_type: str) 
                 if "transcript_text" in cached_outputs:
                     content = cached_outputs["transcript_text"]
 
-        # Actually write the file
         if file_type.lower() == "json":
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(content, f, indent=2)
@@ -403,16 +476,16 @@ tools = remote_tools
 # ------------------------------
 def init_jarvis_knowledge():
     global EMBED_CACHE, VECTOR_DB
+    # Make sure knowledge_repo folder exists:
+    if not os.path.exists(KNOWLEDGE_REPO_DIR):
+        os.makedirs(KNOWLEDGE_REPO_DIR, exist_ok=True)
+
+    # Then load from disk:
     EMBED_CACHE = load_embedding_cache()
     loaded_db = load_vector_db()
 
     VECTOR_DB.clear()
     VECTOR_DB.extend(loaded_db)
-
-    # Make sure knowledge_repo folder exists
-    repo_path = pathlib.Path(KNOWLEDGE_REPO_DIR)
-    if not repo_path.exists():
-        repo_path.mkdir(parents=True, exist_ok=True)
 
     print(f"[INIT] Loaded {len(VECTOR_DB)} entries from {VECTOR_DB_FILE}. "
           f"Embedding cache size: {len(EMBED_CACHE)}.")
@@ -420,6 +493,8 @@ def init_jarvis_knowledge():
 # ------------------------------
 # 6) Chainlit Setup
 # ------------------------------
+import math
+
 MAX_ITER = 5
 cl.instrument_openai()
 
@@ -457,8 +532,6 @@ async def xpander_tool(llm_response, message_history):
 
             result = {}
             if tool_call.name == "fetch-youtube-transcript":
-                # If we already have transcript_text in the session, 
-                # you could skip re-fetching or just re-fetch if desired
                 if "transcript_text" in cached_outputs:
                     result = {"info": "Transcript in session; stored in vector DB."}
                 else:
@@ -467,10 +540,12 @@ async def xpander_tool(llm_response, message_history):
                         text = resp["transcript"]
                         tokens_used = count_tokens(text, "gpt-4o")
                         if tokens_used > TOKEN_THRESHOLD:
+                            # store large transcript in chunks
                             add_text_to_vector_db(text, local_params["video_url"])
                             cached_outputs["transcript_text"] = text
                             result = {"info": MSG_LARGE}
                         else:
+                            # store smaller transcript in memory & maybe embed as single chunk
                             cached_outputs["transcript_text"] = text
                             result = {"transcript": text}
                     else:
@@ -486,10 +561,8 @@ async def xpander_tool(llm_response, message_history):
 
                 # If success, embed the new file
                 if "success" in w_result:
-                    # path might be forcibly in knowledge_repo now
                     final_path = w_result["success"].split("File written to ")[-1].rstrip(".")
                     file_text = read_file_content(final_path)
-                    # Use the file's name as the source
                     add_text_to_vector_db(file_text, os.path.basename(final_path))
 
             elif tool_call.name == "read-file":
@@ -587,13 +660,11 @@ async def run_conversation(msg: cl.Message):
     while cur_iter < MAX_ITER:
         resp = await call_gpt4(history)
 
-        # If GPT didn't return any function calls, we have a final or partial answer
         if not resp.tool_calls:
-            # If there's text content, send it to the user
+            # No more function calls => final answer
             if resp.content:
                 await cl.Message(content=resp.content, author="AI Agent").send()
                 break
-            # If there's no content at all, break anyway
             await cl.Message(content="No more content from GPT.", author="AI Agent").send()
             break
 
