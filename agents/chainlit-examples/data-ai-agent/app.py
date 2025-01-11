@@ -22,26 +22,26 @@ PRIMARY_EMBED_MODEL = "text-embedding-3-large"
 FALLBACK_EMBED_MODEL = "text-embedding-ada-002"
 TOKEN_THRESHOLD = 4000
 
-VECTOR_DB: List[Dict[str, Any]] = []
+EMBED_CACHE_FILE = "embedding_cache.json"
+VECTOR_DB_FILE = "vector_db.json"
+KNOWLEDGE_REPO_DIR = "knowledge_repo"
 
 MSG_LARGE = (
     "The result was too large and has been stored in the vector DB. "
     "Use 'search-long-response' to retrieve relevant chunks."
 )
 
-# We'll maintain a session-level "cached_outputs" for large transcripts, etc.
+# We'll store embeddings & vector DB in memory:
 EMBED_CACHE: Dict[str, List[float]] = {}
+VECTOR_DB: List[Dict[str, Any]] = []
 
 # ------------------------------
-# 0.1) Embedding Cache Utilities
+# 0.1) Embedding & VectorDB Persistence
 # ------------------------------
-def load_embedding_cache(cache_file: str = "embedding_cache.json") -> Dict[str, List[float]]:
-    """
-    Load the embedding cache from a local JSON file if it exists.
-    """
-    if os.path.exists(cache_file):
+def load_embedding_cache() -> Dict[str, List[float]]:
+    if os.path.exists(EMBED_CACHE_FILE):
         try:
-            with open(cache_file, "r", encoding="utf-8") as f:
+            with open(EMBED_CACHE_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
                 return {k: v for k, v in data.items() if isinstance(v, list)}
@@ -49,17 +49,30 @@ def load_embedding_cache(cache_file: str = "embedding_cache.json") -> Dict[str, 
             pass
     return {}
 
-def save_embedding_cache(cache_data: Dict[str, List[float]], cache_file: str = "embedding_cache.json"):
-    """
-    Save the embedding cache to disk.
-    """
+def save_embedding_cache(cache_data: Dict[str, List[float]]):
     try:
-        with open(cache_file, "w", encoding="utf-8") as f:
+        with open(EMBED_CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(cache_data, f)
     except Exception as e:
         print(f"[WARN] Could not save embedding cache: {e}")
 
-EMBED_CACHE = load_embedding_cache()
+def load_vector_db():
+    if os.path.exists(VECTOR_DB_FILE):
+        try:
+            with open(VECTOR_DB_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                return data
+        except:
+            pass
+    return []
+
+def save_vector_db(vdb: List[Dict[str, Any]]):
+    try:
+        with open(VECTOR_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(vdb, f, indent=2)
+    except Exception as e:
+        print(f"[WARN] Could not save vector DB: {e}")
 
 # ------------------------------
 # 1) Setup OpenAI + xpander
@@ -86,19 +99,13 @@ def count_tokens(text: str, model_name: str = "gpt-4o") -> int:
 # 2) RAG: Embedding + Vector Search
 # ------------------------------
 def embed_text(text: str, max_retries=3) -> List[float]:
-    """
-    Checks local EMBED_CACHE before calling the API.
-    """
     if text in EMBED_CACHE:
         return EMBED_CACHE[text]
 
     candidate_models = [PRIMARY_EMBED_MODEL, FALLBACK_EMBED_MODEL]
-
     for model_name in candidate_models:
         for attempt in range(max_retries):
             try:
-                print(f"[DEBUG] Embedding chunk with model={model_name}, attempt={attempt+1}, "
-                      f"text(1st100)='{text[:100]}...'")
                 resp = openai.embeddings.create(input=text, model=model_name)
                 embedding = resp.data[0].embedding
                 EMBED_CACHE[text] = embedding
@@ -109,28 +116,35 @@ def embed_text(text: str, max_retries=3) -> List[float]:
                 if attempt == max_retries - 1:
                     break
                 time.sleep(2)
-
     print("[WARN] All embedding attempts failed. Returning empty list.")
     EMBED_CACHE[text] = []
     save_embedding_cache(EMBED_CACHE)
     return []
 
-def store_tool_response_in_vector_db(response_text: str, tool_name: str) -> None:
+def add_text_to_vector_db(response_text: str, source: str):
+    """
+    Splits 'response_text' into ~500-token chunks, embed each chunk,
+    and appends to VECTOR_DB. Then persist to disk.
+    """
     chunk_size = 500
     enc = tiktoken.encoding_for_model("gpt-4o")
     tokens = enc.encode(response_text)
 
+    new_entries = []
     for i in range(0, len(tokens), chunk_size):
         chunk = tokens[i : i + chunk_size]
         text_chunk = enc.decode(chunk)
         embedding = embed_text(text_chunk)
-        if not embedding:
-            print("[WARN] Embedding failed for a chunk - stored as empty vector.")
-        VECTOR_DB.append({
-            "id": f"{tool_name}-{i}",
+        entry_id = f"{source}-{i}"
+        new_entries.append({
+            "id": entry_id,
+            "source": source,
             "text": text_chunk,
             "embedding": embedding
         })
+
+    VECTOR_DB.extend(new_entries)
+    save_vector_db(VECTOR_DB)
 
 def vector_search(query: str, top_k: int = 3) -> List[str]:
     if not VECTOR_DB:
@@ -149,18 +163,22 @@ def vector_search(query: str, top_k: int = 3) -> List[str]:
         return float(np.dot(a_np, b_np) / denom)
 
     scored = []
-    for chunk in VECTOR_DB:
-        emb = chunk["embedding"]
+    for entry in VECTOR_DB:
+        emb = entry["embedding"]
         if not emb:
             continue
         score = cos_sim(query_emb, emb)
-        scored.append((score, chunk["text"]))
+        scored.append((score, entry["text"], entry["source"]))
 
     scored.sort(key=lambda x: x[0], reverse=True)
-    top_chunks = [item[1] for item in scored[:top_k]]
-    if not top_chunks:
-        return ["No chunks found (all embeddings may have failed)."]
-    return top_chunks
+    top_results = scored[:top_k]
+
+    final_responses = []
+    for score, text_chunk, source in top_results:
+        snippet = f"[From {source} | Score={score:.4f}] {text_chunk}"
+        final_responses.append(snippet)
+
+    return final_responses
 
 # ------------------------------
 # 3) File Helpers
@@ -170,14 +188,26 @@ def is_within_current_directory(file_path: str) -> bool:
     target_path = (base_dir / file_path).resolve()
     return str(target_path).startswith(str(base_dir))
 
+def read_file_content(file_path: str) -> str:
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except:
+        return ""
+
 def read_file(file_path: str, output_format: str = "string") -> dict:
+    """
+    Always ensure we look in knowledge_repo unless user path already includes it.
+    """
+    if not file_path.startswith(KNOWLEDGE_REPO_DIR):
+        file_path = os.path.join(KNOWLEDGE_REPO_DIR, file_path)
+
     if not is_within_current_directory(file_path):
         return {"error": "Access outside the current directory is not allowed."}
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             file_content = f.read()
 
-        # Safeguard: If the file is extremely large, only return partial
         if len(file_content) > 10000:
             partial_content = file_content[:1000]
             return {
@@ -205,22 +235,32 @@ def read_file(file_path: str, output_format: str = "string") -> dict:
                 return {"error": f"Failed to parse XML: {str(e)}"}
         else:
             return {"content": file_content}
+
     except FileNotFoundError:
         return {"error": f"File not found: {file_path}"}
     except Exception as e:
         return {"error": str(e)}
 
 def write_file(file_path: str, content: Union[str, dict, list], file_type: str) -> dict:
+    """
+    Forces writing to knowledge_repo folder unless path already includes it.
+    """
+    if not file_path.startswith(KNOWLEDGE_REPO_DIR):
+        file_path = os.path.join(KNOWLEDGE_REPO_DIR, file_path)
+
     if not is_within_current_directory(file_path):
         return {"error": "Access outside the current directory is not allowed."}
     try:
-        # If content is the "MSG_LARGE" placeholder, override with real transcript if available
+        # Replace placeholder with real transcript if found in session
+        from chainlit import user_session
+        MSG_PLACEHOLDER = "The transcript content will be fetched and written here."
         if isinstance(content, str):
-            if content.strip().startswith(MSG_LARGE) or content.strip() == "The transcript content will be fetched and written here.":
-                cached_outputs = cl.user_session.get("cached_outputs") or {}
+            if content.strip().startswith(MSG_LARGE) or content.strip() == MSG_PLACEHOLDER:
+                cached_outputs = user_session.get("cached_outputs") or {}
                 if "transcript_text" in cached_outputs:
                     content = cached_outputs["transcript_text"]
 
+        # Actually write the file
         if file_type.lower() == "json":
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(content, f, indent=2)
@@ -235,7 +275,6 @@ def write_file(file_path: str, content: Union[str, dict, list], file_type: str) 
             with open(file_path, "w", newline="", encoding="utf-8") as f:
                 csv.writer(f).writerows(content)
         else:
-            # default is text
             with open(file_path, "w", encoding="utf-8") as f:
                 if isinstance(content, str):
                     f.write(content)
@@ -268,7 +307,6 @@ def search_long_response(query: str, top_k: int = 3) -> dict:
     results = vector_search(query, top_k=top_k)
     return {"chunks": results}
 
-# Local tools
 local_tools = [
     {
         "type": "function",
@@ -291,13 +329,13 @@ local_tools = [
         "type": "function",
         "function": {
             "name": "write-file",
-            "description": "Writes content to a local file.",
+            "description": "Writes content to a local file. Always stored in the knowledge_repo folder unless you explicitly prefix the path with 'knowledge_repo/'.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filePath": {
                         "type": "string",
-                        "description": "Within current directory."
+                        "description": "Filename or path. Will be forced into the knowledge_repo folder unless it already has that prefix."
                     },
                     "fileContent": {
                         "type": "string",
@@ -316,13 +354,13 @@ local_tools = [
         "type": "function",
         "function": {
             "name": "read-file",
-            "description": "Reads a local file.",
+            "description": "Reads a local file from knowledge_repo unless path already includes it. Returns a partial if the file is huge.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filePath": {
                         "type": "string",
-                        "description": "Path to the file."
+                        "description": "Path to the file. Usually just the filename is enough."
                     },
                     "outputFormat": {
                         "type": "string",
@@ -337,7 +375,7 @@ local_tools = [
         "type": "function",
         "function": {
             "name": "search-long-response",
-            "description": "Query large responses stored in vector DB.",
+            "description": "Query large responses stored in vector DB for relevant chunks.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -361,6 +399,25 @@ remote_tools = xpander_agent.get_tools()
 tools = remote_tools
 
 # ------------------------------
+# 5) Initialization
+# ------------------------------
+def init_jarvis_knowledge():
+    global EMBED_CACHE, VECTOR_DB
+    EMBED_CACHE = load_embedding_cache()
+    loaded_db = load_vector_db()
+
+    VECTOR_DB.clear()
+    VECTOR_DB.extend(loaded_db)
+
+    # Make sure knowledge_repo folder exists
+    repo_path = pathlib.Path(KNOWLEDGE_REPO_DIR)
+    if not repo_path.exists():
+        repo_path.mkdir(parents=True, exist_ok=True)
+
+    print(f"[INIT] Loaded {len(VECTOR_DB)} entries from {VECTOR_DB_FILE}. "
+          f"Embedding cache size: {len(EMBED_CACHE)}.")
+
+# ------------------------------
 # 6) Chainlit Setup
 # ------------------------------
 MAX_ITER = 5
@@ -368,15 +425,17 @@ cl.instrument_openai()
 
 @cl.on_chat_start
 def start_chat():
+    init_jarvis_knowledge()
+
     cl.user_session.set("cached_outputs", {})
     cl.user_session.set("message_history", [
         {
             "role": "system",
             "content": (
                 "You are an advanced AI assistant with xpander's tools + local tools. "
-                "You can store large responses in a vector DB and do vector-based retrieval with 'search-long-response'. "
-                "Don't re-fetch the same YouTube transcript multiple times. "
-                "If the transcript is large, store it once and refer to it, or write it to a file."
+                "You have a persistent memory of local files & transcripts in your vector DB. "
+                "Whenever asked a question, you can optionally do a 'search-long-response' to find relevant info. "
+                "If a user provides a new YouTube link or file, embed it into your memory for future use. "
             ),
         }
     ])
@@ -398,18 +457,17 @@ async def xpander_tool(llm_response, message_history):
 
             result = {}
             if tool_call.name == "fetch-youtube-transcript":
-                # If already fetched, return short message
+                # If we already have transcript_text in the session, 
+                # you could skip re-fetching or just re-fetch if desired
                 if "transcript_text" in cached_outputs:
-                    result = {
-                        "info": "Transcript already fetched and stored in vector DB. Use 'search-long-response' or 'write-file' if needed."
-                    }
+                    result = {"info": "Transcript in session; stored in vector DB."}
                 else:
                     resp = fetch_youtube_transcript(local_params["video_url"])
                     if "transcript" in resp:
                         text = resp["transcript"]
                         tokens_used = count_tokens(text, "gpt-4o")
                         if tokens_used > TOKEN_THRESHOLD:
-                            store_tool_response_in_vector_db(text, tool_call.name)
+                            add_text_to_vector_db(text, local_params["video_url"])
                             cached_outputs["transcript_text"] = text
                             result = {"info": MSG_LARGE}
                         else:
@@ -419,23 +477,30 @@ async def xpander_tool(llm_response, message_history):
                         result = resp
 
             elif tool_call.name == "write-file":
-                file_path = local_params["filePath"]
-                file_type = local_params["fileType"]
-                file_content = local_params["fileContent"]
-                if file_content.strip().startswith(MSG_LARGE):
-                    if "transcript_text" in cached_outputs:
-                        file_content = cached_outputs["transcript_text"]
-                result = write_file(file_path, file_content, file_type)
+                w_result = write_file(
+                    file_path=local_params["filePath"],
+                    content=local_params["fileContent"],
+                    file_type=local_params["fileType"],
+                )
+                result.update(w_result)
+
+                # If success, embed the new file
+                if "success" in w_result:
+                    # path might be forcibly in knowledge_repo now
+                    final_path = w_result["success"].split("File written to ")[-1].rstrip(".")
+                    file_text = read_file_content(final_path)
+                    # Use the file's name as the source
+                    add_text_to_vector_db(file_text, os.path.basename(final_path))
 
             elif tool_call.name == "read-file":
-                file_path = local_params["filePath"]
                 output_format = local_params.get("outputFormat", "string")
-                result = read_file(file_path, output_format)
+                result = read_file(local_params["filePath"], output_format=output_format)
 
             elif tool_call.name == "search-long-response":
                 query_str = local_params["query"]
                 top_k = local_params.get("top_k", 3)
                 result = search_long_response(query_str, top_k)
+
             else:
                 result = {"error": f"Unknown local tool: {tool_call.name}"}
 
@@ -444,7 +509,7 @@ async def xpander_tool(llm_response, message_history):
                 text_json = json.dumps(result, ensure_ascii=False)
                 tok_count = count_tokens(text_json, "gpt-4o")
                 if tok_count > TOKEN_THRESHOLD:
-                    store_tool_response_in_vector_db(text_json, tool_call.name)
+                    add_text_to_vector_db(text_json, tool_call.name)
                     result = {"info": MSG_LARGE}
 
             current_step.output = result
@@ -454,14 +519,13 @@ async def xpander_tool(llm_response, message_history):
                 "name": tool_call.name,
                 "content": json.dumps(result),
             })
-
         else:
             # xpander remote
             function_response = xpander_agent.run_tool(tool_call)
             text_repr = json.dumps(function_response.result, ensure_ascii=False)
             tok_count = count_tokens(text_repr, "gpt-4o")
             if tok_count > TOKEN_THRESHOLD:
-                store_tool_response_in_vector_db(text_repr, tool_call.name)
+                add_text_to_vector_db(text_repr, tool_call.name)
                 short_msg = {
                     "info": f"Output from xpander tool '{tool_call.name}' was large. Stored in DB."
                 }
@@ -535,17 +599,13 @@ async def run_conversation(msg: cl.Message):
 
         cur_iter += 1
 
-    # If we exhausted MAX_ITER and still have no final answer, force a last user->assistant turn
     if cur_iter >= MAX_ITER:
+        # Force final summary
         history.append({
             "role": "user",
-            "content": (
-                "Please provide your final summary or conclusion now, without calling any tools."
-            )
+            "content": "Please provide a final answer without any tool calls."
         })
-        final_resp = await client.chat.completions.create(
-            messages=history, model="gpt-4o"
-        )
+        final_resp = await client.chat.completions.create(messages=history, model="gpt-4o")
         if final_resp.choices and final_resp.choices[0].message.content:
             await cl.Message(
                 content=final_resp.choices[0].message.content,
