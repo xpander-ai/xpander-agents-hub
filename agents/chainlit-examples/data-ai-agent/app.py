@@ -26,7 +26,6 @@ xpander_agent = xpander_client.agents.get(agent_id=xpanderAgentID)
 
 # ------------------------------
 # 2) Local File-Handling Helpers
-# (If you'd like to support reading/writing files)
 # ------------------------------
 def is_within_current_directory(file_path: str) -> bool:
     """
@@ -139,14 +138,12 @@ def fetch_youtube_transcript(video_url: str) -> dict:
 
 # ------------------------------
 # 4) Define Local Tools
-# (We include read-file/write-file in case you want them.)
 # ------------------------------
 local_tools = [
     {
         "type": "function",
         "function": {
             # Note: xpander might rename this to xpLocal_fetch-youtube-transcript
-            # We'll handle that in code below.
             "name": "fetch-youtube-transcript",
             "description": "Fetches the transcript text for a given YouTube video URL.",
             "parameters": {
@@ -235,7 +232,7 @@ def start_chat():
     )
 
 # ------------------------------
-# 7) xpander_tool Step: Dispatch Local vs Remote
+# 7) xpander_tool Step: Dispatch Local vs. Remote
 # ------------------------------
 @cl.step(type="tool")
 async def xpander_tool(llm_response, message_history):
@@ -250,8 +247,10 @@ async def xpander_tool(llm_response, message_history):
         current_step.input = tool_call.payload
 
         if tool_call.type == ToolCallType.LOCAL:
+            # We parse the actual arguments from GPT's message
             local_params = json.loads(llm_response.choices[0].message.tool_calls[0].function.arguments)
             current_step.input = local_params
+
             if tool_call.name in ["fetch-youtube-transcript"]:
                 video_url = local_params.get("video_url", "")
                 result = fetch_youtube_transcript(video_url)
@@ -301,7 +300,7 @@ async def call_gpt4(message_history):
     We pass xpander's remote tools for function-based calls.
     """
     settings = {
-        "model": "gpt-4o",    # Adjust your desired model
+        "model": "gpt-4o",    # Adjust to your desired model
         "tools": tools,       # xpander's remote tool schemas
         "tool_choice": "auto" # Let GPT pick any function it sees
     }
