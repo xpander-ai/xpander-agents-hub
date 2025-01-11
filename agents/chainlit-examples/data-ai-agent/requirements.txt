@@ -1,0 +1,4 @@
+chainlit
+openai
+xpander-sdk==1.24.0
+youtube_transcript_api
