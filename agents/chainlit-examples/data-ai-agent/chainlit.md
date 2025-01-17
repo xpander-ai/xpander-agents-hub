@@ -1,14 +1,30 @@
-# Welcome to Chainlit! 🚀🤖
+# Welcome to Data AI Agent! 🚀
 
-Hi there, Developer! 👋 We're excited to have you on board. Chainlit is a powerful tool designed to help you prototype, debug and share applications built on top of LLMs.
+## Features
 
-## Useful Links 🔗
+- YouTube video summarization
+- RAG-powered responses
+- Tool integration
+- Metadata tracking
 
-- **Documentation:** Get started with our comprehensive [Chainlit Documentation](https://docs.chainlit.io) 📚
-- **Discord Community:** Join our friendly [Chainlit Discord](https://discord.gg/k73SQ3FyUh) to ask questions, share your projects, and connect with other developers! 💬
+## Metadata Display
 
-We can't wait to see what you create with Chainlit! Happy coding! 💻😊
+This agent shows:
+- Token usage
+- Processing time
+- Number of iterations
 
-## Welcome screen
+## Settings
 
-To modify the welcome screen, edit the `chainlit.md` file at the root of your project. If you do not want a welcome screen, just leave this file empty.
+```yaml
+# Enable metadata display
+metadata: true
+metadata_keys:
+  - latency
+  - input_tokens
+  - output_tokens
+  - total_tokens
+  - result_tokens
+  - total_latency
+  - iterations
+```
