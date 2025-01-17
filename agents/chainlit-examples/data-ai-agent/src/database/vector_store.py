@@ -97,8 +97,8 @@ class VectorStore:
         self.save_store()
         print(f"[VDB] Done storing. DB now has {len(self.vector_db)} entries.")
 
-    def search(self, query: str, top_k: int = 3) -> List[str]:
-        """Return top_k matching chunks from DB as short strings."""
+    def search(self, query: str, top_k: int = 3, min_similarity: float = 0.7) -> List[str]:
+        """Return top_k matching chunks from DB as short strings that meet minimum similarity threshold."""
         if not self.vector_db:
             print("[VDB] DB empty.")
             return []
@@ -116,7 +116,8 @@ class VectorStore:
             emb = entry.get("embedding", [])
             if emb:
                 s = cos_sim(q_emb, emb)
-                scored.append((s, entry["text"], entry["id"]))
+                if s >= min_similarity:  # Only include results above threshold
+                    scored.append((s, entry["text"], entry["id"]))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         hits = scored[:top_k]
