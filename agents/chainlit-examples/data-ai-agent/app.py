@@ -73,7 +73,7 @@ def start_chat():
 def auto_rag_prepend(user_text: str, top_k: int = 3) -> str:
     """Do a quick vector search on user_text, prepend best chunks as context."""
     print(f"[AUTO-RAG] Searching for user_text[:60]={user_text[:60]}")
-    hits = vector_store.search(user_text, top_k=top_k, min_similarity=0.8)
+    hits = vector_store.search(user_text, top_k=top_k, min_similarity=0.6)
     if not hits:
         print("[AUTO-RAG] No relevant hits. Returning user text alone.")
         return user_text

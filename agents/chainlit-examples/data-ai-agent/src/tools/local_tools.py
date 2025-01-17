@@ -22,6 +22,10 @@ def fetch_youtube_transcript(video_url: str) -> Dict[str, str]:
 
         data = YouTubeTranscriptApi.get_transcript(vid)
         text = " ".join(e["text"] for e in data)
+        
+        # Save transcript to vector store with video ID as source
+        vector_store.add_text(text, f"youtube_{vid}")
+        
         return {"transcript": text}
     except Exception as e:
         return {"error": str(e)}
