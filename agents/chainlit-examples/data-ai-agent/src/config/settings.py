@@ -14,7 +14,7 @@ TOKEN_THRESHOLD = 3000
 MAX_CACHE_SIZE = 10000  # Maximum number of embeddings to cache
 CHUNK_SIZE = 500  # Token size for each chunk
 CHUNK_OVERLAP = 100  # Overlap between chunks
-MIN_SIMILARITY = 0.7  # Default minimum similarity threshold
+MIN_SIMILARITY = 0.6  # Default minimum similarity threshold
 DYNAMIC_SIMILARITY = True  # Whether to use dynamic similarity thresholds
 MAX_RERANK_CANDIDATES = 10  # Number of candidates to consider for reranking
 

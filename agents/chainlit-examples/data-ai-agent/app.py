@@ -70,16 +70,15 @@ def start_chat():
             "role": "system",
             "content": (
                 "You are an advanced AI with sophisticated memory and retrieval capabilities. Follow these guidelines:\n\n"
-                "1. CONTEXT UTILIZATION:\n"
+                "1. MEMORY USAGE:\n"
+                "   - ALWAYS check memory first using memory-search before using other tools\n"
+                "   - If no context is provided, use memory-search to find relevant information\n"
+                "   - Only proceed with other tools if memory search yields no results\n\n"
+                "2. CONTEXT UTILIZATION:\n"
                 "   - Always analyze the provided context thoroughly\n"
                 "   - Connect information across different context pieces\n"
                 "   - Acknowledge when context might be incomplete\n"
                 "   - Be explicit about which context you're using\n\n"
-                "2. MEMORY MANAGEMENT:\n"
-                "   - Utilize the vector store for semantic search\n"
-                "   - Consider temporal aspects of stored information\n"
-                "   - Maintain context coherence across interactions\n"
-                "   - Clean up outdated or redundant information\n\n"
                 "3. RESPONSE QUALITY:\n"
                 "   - Provide accurate, well-reasoned answers\n"
                 "   - Cite specific context when relevant\n"
@@ -114,8 +113,13 @@ def auto_rag_prepend(user_text: str, top_k: int = 3) -> str:
     )
     
     if not hits:
-        print("[AUTO-RAG] No relevant hits found.")
-        return user_text
+        print("[AUTO-RAG] No relevant hits found in initial search.")
+        # Instead of just returning, suggest using memory-search
+        return (
+            "No immediately relevant information found in memory. "
+            "Please use the memory-search tool to look for related information before proceeding.\n\n"
+            f"Original question: {user_text}"
+        )
     
     # Process and format the context
     contexts = []
@@ -132,7 +136,11 @@ def auto_rag_prepend(user_text: str, top_k: int = 3) -> str:
             contexts.append(text)
     
     if not contexts:
-        return user_text
+        return (
+            "No immediately relevant information found in memory. "
+            "Please use the memory-search tool to look for related information before proceeding.\n\n"
+            f"Original question: {user_text}"
+        )
         
     # Format context in a more natural way
     formatted_context = "\n\n".join([
