@@ -4,7 +4,8 @@ import time
 import openai
 import tiktoken
 import numpy as np
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
+from collections import defaultdict
 
 from src.config.settings import (
     KNOWLEDGE_REPO_DIR,
@@ -110,7 +111,8 @@ class VectorStore:
                 "meta": {"source": source},
                 "text": chunk,
                 "text_hash": hash(chunk),
-                "embedding": embedding
+                "embedding": embedding,
+                "timestamp": time.time()
             })
             print(f"[VDB] Saved chunk={entry_id}, chunk_length={len(chunk)}")
 
@@ -150,6 +152,98 @@ class VectorStore:
                 snippet = chunk[:60] + "..." if len(chunk)>60 else chunk
                 print(f" {i+1}) ID={cid}, Score={score:.4f}, chunk={snippet}")
         return [f"[{r[2]}] {r[1]}" for r in hits]
+
+    def list_memories(self) -> List[Dict[str, Any]]:
+        """List all memories with metadata."""
+        memories = []
+        for entry in self.vector_db:
+            memory = {
+                "id": entry["id"],
+                "source": entry["meta"]["source"],
+                "timestamp": entry.get("timestamp", 0),
+                "text_preview": entry["text"][:100] + "..." if len(entry["text"]) > 100 else entry["text"]
+            }
+            memories.append(memory)
+        return sorted(memories, key=lambda x: x["timestamp"], reverse=True)
+
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """Get statistics about the memory store."""
+        if not self.vector_db:
+            return {
+                "total_memories": 0,
+                "total_sources": 0,
+                "source_counts": {},
+                "oldest_memory": None,
+                "newest_memory": None
+            }
+
+        source_counts = defaultdict(int)
+        timestamps = []
+        
+        for entry in self.vector_db:
+            source = entry["meta"]["source"]
+            source_counts[source] += 1
+            if "timestamp" in entry:
+                timestamps.append(entry["timestamp"])
+
+        stats = {
+            "total_memories": len(self.vector_db),
+            "total_sources": len(source_counts),
+            "source_counts": dict(source_counts),
+            "oldest_memory": min(timestamps) if timestamps else None,
+            "newest_memory": max(timestamps) if timestamps else None
+        }
+        return stats
+
+    def delete_memory(self, memory_id: str) -> bool:
+        """Delete a specific memory by ID."""
+        initial_length = len(self.vector_db)
+        self.vector_db = [entry for entry in self.vector_db if entry["id"] != memory_id]
+        
+        if len(self.vector_db) < initial_length:
+            self.save_store()
+            print(f"[VDB] Deleted memory with ID: {memory_id}")
+            return True
+        return False
+
+    def delete_source(self, source: str) -> int:
+        """Delete all memories from a specific source."""
+        initial_length = len(self.vector_db)
+        self.vector_db = [entry for entry in self.vector_db if entry["meta"]["source"] != source]
+        
+        deleted_count = initial_length - len(self.vector_db)
+        if deleted_count > 0:
+            self.save_store()
+            print(f"[VDB] Deleted {deleted_count} memories from source: {source}")
+        return deleted_count
+
+    def clean_duplicates(self) -> int:
+        """Remove duplicate memories based on text_hash."""
+        seen_hashes = set()
+        unique_entries = []
+        duplicates = 0
+
+        for entry in self.vector_db:
+            text_hash = entry.get("text_hash")
+            if text_hash not in seen_hashes:
+                seen_hashes.add(text_hash)
+                unique_entries.append(entry)
+            else:
+                duplicates += 1
+
+        if duplicates > 0:
+            self.vector_db = unique_entries
+            self.save_store()
+            print(f"[VDB] Removed {duplicates} duplicate memories")
+        return duplicates
+
+    def clear_all_memories(self) -> int:
+        """Clear all memories from the store."""
+        count = len(self.vector_db)
+        self.vector_db = []
+        self.save_store()
+        print(f"[VDB] Cleared all {count} memories")
+        return count
 
 # Initialize global vector store instance
 vector_store = VectorStore() 

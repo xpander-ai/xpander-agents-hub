@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import chainlit as cl
 from openai import AsyncOpenAI
 import tiktoken
@@ -17,8 +18,17 @@ from src.tools.local_tools import (
     read_file,
     write_file,
     memory_search,
+    list_memories,
+    get_memory_stats,
+    delete_memory,
+    delete_source,
+    clean_duplicates,
+    clear_all_memories,
+    read_query_logs,
+    get_query_stats,
     local_tools
 )
+from src.utils.query_logger import query_logger
 
 from xpander_sdk import XpanderClient, ToolCallType
 
@@ -59,14 +69,31 @@ def start_chat():
         {
             "role": "system",
             "content": (
-                "You are an advanced AI with long-term memory capabilities. Follow these steps IN ORDER:\n"
-                "1. For ANY query, ALWAYS check your memory (vector store) FIRST using semantic search.\n"
-                "2. Your memory contains transcripts, summaries, previous answers, and other content.\n"
-                "3. If you find relevant information in memory, use it to answer WITHOUT calling tools.\n"
-                "4. Only if no relevant memories are found, then call tools to fetch new information.\n"
-                "5. After getting new information from tools, it will be automatically stored in your memory.\n"
-                "6. Your responses should clearly indicate if you're using stored memories or fetching new data.\n\n"
-                "Remember: You have a persistent memory - use it to provide consistent and informed responses!"
+                "You are an advanced AI with sophisticated memory management capabilities. Follow these guidelines:\n\n"
+                "1. MEMORY SEARCH:\n"
+                "   - For ANY query, ALWAYS check your memory first using semantic search\n"
+                "   - Your memory contains transcripts, summaries, previous answers, and other content\n"
+                "   - If you find relevant information, use it to answer WITHOUT calling other tools\n"
+                "   - Only if no relevant memories are found, then call tools to fetch new information\n\n"
+                "2. MEMORY MANAGEMENT:\n"
+                "   - You can list all memories using list-memories\n"
+                "   - Get memory statistics with get-memory-stats\n"
+                "   - Delete specific memories by ID using delete-memory\n"
+                "   - Remove all memories from a source using delete-source\n"
+                "   - Clean up duplicates with clean-duplicates\n"
+                "   - Clear all memories using clear-all-memories\n\n"
+                "3. MEMORY HYGIENE:\n"
+                "   - Regularly check for and remove duplicate memories\n"
+                "   - Delete outdated or irrelevant memories when appropriate\n"
+                "   - Keep track of memory sources and their relevance\n"
+                "   - Maintain organized and efficient memory storage\n\n"
+                "4. QUERY LOGGING:\n"
+                "   - All your interactions are logged with token counts, latency, and cost\n"
+                "   - You can read query logs using read-query-logs\n"
+                "   - Get usage statistics with get-query-stats\n"
+                "   - Use this information to optimize your responses\n\n"
+                "Remember: You have full control over your memory system. Use these capabilities to provide accurate, "
+                "consistent, and well-organized responses while maintaining an efficient memory store."
             )
         }
     ])
@@ -104,6 +131,8 @@ async def call_gpt4(msg_history):
     current_tool_calls = []
     current_content = ""
     
+    start_time = time.time()
+    
     async with cl.Step(name="gpt-4", type="llm") as step:
         async for chunk in await openai_client.chat.completions.create(messages=msg_history, **settings):
             if not chunk.choices:
@@ -137,6 +166,22 @@ async def call_gpt4(msg_history):
         }
         
         step.output = current_content if current_content else "Tool call initiated"
+    
+    # Log query details
+    latency = time.time() - start_time
+    query_text = msg_history[-1]["content"] if msg_history else ""
+    response_text = current_content if current_content else json.dumps(current_tool_calls)
+    
+    query_logger.log_query(
+        query=query_text,
+        response=response_text,
+        latency=latency,
+        metadata={
+            "model": "gpt-4",
+            "has_tool_calls": bool(current_tool_calls),
+            "num_tool_calls": len(current_tool_calls) if current_tool_calls else 0
+        }
+    )
     
     class SyntheticMessage:
         def __init__(self, content, tool_calls):
@@ -212,6 +257,37 @@ async def xpander_tool(llm_response, message_history):
                 r = memory_search(
                     local_params["query"],
                     local_params.get("top_k", 3)
+                )
+                result = r
+            elif tc.name == "list-memories":
+                r = list_memories()
+                result = r
+            elif tc.name == "get-memory-stats":
+                r = get_memory_stats()
+                result = r
+            elif tc.name == "delete-memory":
+                r = delete_memory(local_params["memory_id"])
+                result = r
+            elif tc.name == "delete-source":
+                r = delete_source(local_params["source"])
+                result = r
+            elif tc.name == "clean-duplicates":
+                r = clean_duplicates()
+                result = r
+            elif tc.name == "clear-all-memories":
+                r = clear_all_memories()
+                result = r
+            elif tc.name == "read-query-logs":
+                r = read_query_logs(
+                    start_time=local_params.get("start_time"),
+                    end_time=local_params.get("end_time"),
+                    limit=local_params.get("limit", 100)
+                )
+                result = r
+            elif tc.name == "get-query-stats":
+                r = get_query_stats(
+                    start_time=local_params.get("start_time"),
+                    end_time=local_params.get("end_time")
                 )
                 result = r
             else:

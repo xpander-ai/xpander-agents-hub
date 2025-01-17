@@ -3,11 +3,12 @@ import json
 import csv
 from io import StringIO
 import xml.etree.ElementTree as ET
-from typing import Dict, Any
+from typing import Dict, Any, List
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from src.config.settings import KNOWLEDGE_REPO_DIR, TOKEN_THRESHOLD
 from src.database.vector_store import vector_store
+from src.utils.query_logger import query_logger
 
 def fetch_youtube_transcript(video_url: str) -> Dict[str, str]:
     """Fetch a YouTube transcript."""
@@ -154,6 +155,75 @@ def memory_search(query: str, top_k: int = 3) -> Dict[str, Any]:
         "info": f"Found {len(chunks)} relevant pieces of information in memory."
     }
 
+def list_memories() -> Dict[str, Any]:
+    """List all memories with metadata."""
+    memories = vector_store.list_memories()
+    return {
+        "memories": memories,
+        "info": f"Found {len(memories)} memories in total."
+    }
+
+def get_memory_stats() -> Dict[str, Any]:
+    """Get statistics about the memory store."""
+    stats = vector_store.get_memory_stats()
+    return {
+        "stats": stats,
+        "info": f"Memory store contains {stats['total_memories']} memories from {stats['total_sources']} sources."
+    }
+
+def delete_memory(memory_id: str) -> Dict[str, Any]:
+    """Delete a specific memory by ID."""
+    success = vector_store.delete_memory(memory_id)
+    if success:
+        return {"success": f"Deleted memory with ID: {memory_id}"}
+    return {"error": f"Memory with ID {memory_id} not found"}
+
+def delete_source(source: str) -> Dict[str, Any]:
+    """Delete all memories from a specific source."""
+    count = vector_store.delete_source(source)
+    if count > 0:
+        return {"success": f"Deleted {count} memories from source: {source}"}
+    return {"error": f"No memories found from source: {source}"}
+
+def clean_duplicates() -> Dict[str, Any]:
+    """Remove duplicate memories."""
+    count = vector_store.clean_duplicates()
+    if count > 0:
+        return {"success": f"Removed {count} duplicate memories"}
+    return {"info": "No duplicate memories found"}
+
+def clear_all_memories() -> Dict[str, Any]:
+    """Clear all memories from the store."""
+    count = vector_store.clear_all_memories()
+    return {"success": f"Cleared all {count} memories"}
+
+def read_query_logs(
+    start_time: str = None,
+    end_time: str = None,
+    limit: int = 100
+) -> Dict[str, Any]:
+    """Read query logs with optional time filtering."""
+    logs = query_logger.read_logs(start_time, end_time, limit)
+    return {
+        "logs": logs,
+        "info": f"Retrieved {len(logs)} query logs"
+    }
+
+def get_query_stats(
+    start_time: str = None,
+    end_time: str = None
+) -> Dict[str, Any]:
+    """Get usage statistics from query logs."""
+    stats = query_logger.get_usage_stats(start_time, end_time)
+    return {
+        "stats": stats,
+        "info": (
+            f"Found {stats['total_queries']} queries, "
+            f"total cost: ${stats['total_cost_usd']:.4f}, "
+            f"avg latency: {stats['avg_latency']:.2f}s"
+        )
+    }
+
 # Tool definitions for the agent
 local_tools = [
     {
@@ -182,6 +252,107 @@ local_tools = [
                     "top_k": {"type": "number"}
                 },
                 "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list-memories",
+            "description": "List all memories with metadata.",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get-memory-stats",
+            "description": "Get statistics about the memory store.",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete-memory",
+            "description": "Delete a specific memory by ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "memory_id": {"type": "string"}
+                },
+                "required": ["memory_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete-source",
+            "description": "Delete all memories from a specific source.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string"}
+                },
+                "required": ["source"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "clean-duplicates",
+            "description": "Remove duplicate memories.",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "clear-all-memories",
+            "description": "Clear all memories from the store.",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read-query-logs",
+            "description": "Read query logs with optional time filtering.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start_time": {"type": "string"},
+                    "end_time": {"type": "string"},
+                    "limit": {"type": "number"}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get-query-stats",
+            "description": "Get usage statistics from query logs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start_time": {"type": "string"},
+                    "end_time": {"type": "string"}
+                }
             }
         }
     },
