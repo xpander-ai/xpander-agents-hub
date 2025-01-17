@@ -13,6 +13,7 @@ def fetch_youtube_transcript(video_url: str) -> Dict[str, str]:
     """Fetch a YouTube transcript."""
     print(f"[TOOL] fetch_youtube_transcript => {video_url}")
     try:
+        # Extract video ID consistently
         if "watch?v=" in video_url:
             vid = video_url.split("v=")[-1].split("&")[0]
         elif "youtu.be/" in video_url:
@@ -23,11 +24,30 @@ def fetch_youtube_transcript(video_url: str) -> Dict[str, str]:
         data = YouTubeTranscriptApi.get_transcript(vid)
         text = " ".join(e["text"] for e in data)
         
-        # Save transcript to vector store with video ID as source
-        vector_store.add_text(text, f"youtube_{vid}")
+        print(f"[TRANSCRIPT] Got transcript of length: {len(text)}")
         
-        return {"transcript": text}
+        # Use consistent source ID format
+        source_id = f"youtube_{vid}"
+        print(f"[TRANSCRIPT] Saving to vector store with source: {source_id}")
+        
+        try:
+            vector_store.add_text(text, source_id)
+            db_size = len(vector_store.vector_db)
+            print(f"[TRANSCRIPT] Successfully saved to vector store (DB size: {db_size})")
+            
+            return {
+                "transcript": text,
+                "info": f"Transcript saved to vector store (DB size: {db_size})"
+            }
+        except Exception as e:
+            print(f"[ERROR] Failed to save to vector store: {str(e)}")
+            return {
+                "transcript": text,
+                "warning": "Transcript retrieved but failed to save to vector store"
+            }
+            
     except Exception as e:
+        print(f"[ERROR] Failed to fetch transcript: {str(e)}")
         return {"error": str(e)}
 
 def read_file(path: str, fmt: str = "string") -> Dict[str, Any]:
@@ -92,12 +112,46 @@ def write_file(path: str, file_content: str, file_type: str) -> Dict[str, str]:
     except Exception as e:
         return {"error": str(e)}
 
-def search_long_response(query: str, top_k: int = 3) -> Dict[str, Any]:
-    """Search vector database for relevant content."""
-    chunks = vector_store.search(query, top_k)
+def memory_search(query: str, top_k: int = 3) -> Dict[str, Any]:
+    """Search agent's memory (vector store) for relevant content."""
+    print(f"[MEMORY] Original query: {query[:100]}...")
+    
+    # Convert specific types of queries into semantic search queries
+    search_query = query
+    if "youtube.com/watch?v=" in query or "youtu.be/" in query:
+        search_query = "video content and summary"
+        print(f"[MEMORY] URL detected, converting to semantic search: {search_query}")
+    elif query.startswith("http"):
+        search_query = "content and summary from the webpage"
+        print(f"[MEMORY] URL detected, converting to semantic search: {search_query}")
+    
+    print(f"[MEMORY] Vector DB size: {len(vector_store.vector_db)}")
+    print("[MEMORY] Available memories:")
+    for entry in vector_store.vector_db:
+        print(f"  - ID: {entry['id']}, Content preview: {entry['text'][:100]}...")
+    
+    chunks = vector_store.search(search_query, top_k=top_k, min_similarity=0.3)  # Low threshold for better recall
+    
+    if not chunks:
+        print("[MEMORY] No relevant memories found")
+        return {
+            "chunks": [],
+            "info": "No relevant information found in memory."
+        }
+    
+    print(f"[MEMORY] Found {len(chunks)} relevant memories")
+    # Extract just the content from the formatted chunks
+    clean_chunks = []
+    for chunk in chunks:
+        # Remove the [id] prefix if present
+        if '] ' in chunk:
+            clean_chunks.append(chunk.split('] ', 1)[1])
+        else:
+            clean_chunks.append(chunk)
+            
     return {
-        "chunks": chunks,
-        "info": "Partial RAG data. Re-run if needed."
+        "chunks": clean_chunks,
+        "info": f"Found {len(chunks)} relevant pieces of information in memory."
     }
 
 # Tool definitions for the agent
@@ -119,8 +173,8 @@ local_tools = [
     {
         "type": "function",
         "function": {
-            "name": "search-long-response",
-            "description": "Agentic RAG partial data from DB.",
+            "name": "memory-search",
+            "description": "Search agent's long-term memory for relevant information.",
             "parameters": {
                 "type": "object",
                 "properties": {

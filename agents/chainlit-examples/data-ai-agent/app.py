@@ -16,7 +16,7 @@ from src.tools.local_tools import (
     fetch_youtube_transcript,
     read_file,
     write_file,
-    search_long_response,
+    memory_search,
     local_tools
 )
 
@@ -59,12 +59,14 @@ def start_chat():
         {
             "role": "system",
             "content": (
-                "You are an advanced AI with Agentic RAG. "
-                "For each user query, do an immediate vector search for context. "
-                "If you need more data, call xpander/local tools. "
-                "After each tool call, we re-run GPT so it can incorporate the new data. "
-                "We store user queries, transcripts, final answers in the local DB. "
-                "Stop if you have provided a final answer."
+                "You are an advanced AI with long-term memory capabilities. Follow these steps IN ORDER:\n"
+                "1. For ANY query, ALWAYS check your memory (vector store) FIRST using semantic search.\n"
+                "2. Your memory contains transcripts, summaries, previous answers, and other content.\n"
+                "3. If you find relevant information in memory, use it to answer WITHOUT calling tools.\n"
+                "4. Only if no relevant memories are found, then call tools to fetch new information.\n"
+                "5. After getting new information from tools, it will be automatically stored in your memory.\n"
+                "6. Your responses should clearly indicate if you're using stored memories or fetching new data.\n\n"
+                "Remember: You have a persistent memory - use it to provide consistent and informed responses!"
             )
         }
     ])
@@ -73,11 +75,20 @@ def start_chat():
 def auto_rag_prepend(user_text: str, top_k: int = 3) -> str:
     """Do a quick vector search on user_text, prepend best chunks as context."""
     print(f"[AUTO-RAG] Searching for user_text[:60]={user_text[:60]}")
-    hits = vector_store.search(user_text, top_k=top_k, min_similarity=0.6)
+    hits = vector_store.search(user_text, top_k=top_k, min_similarity=0.5)  # Lower threshold for better recall
     if not hits:
         print("[AUTO-RAG] No relevant hits. Returning user text alone.")
         return user_text
-    ctx = "\n".join([f"- {h}" for h in hits])
+    
+    # Clean up the hits to remove the [id] prefix
+    clean_hits = []
+    for hit in hits:
+        if '] ' in hit:
+            clean_hits.append(hit.split('] ', 1)[1])
+        else:
+            clean_hits.append(hit)
+    
+    ctx = "\n".join([f"- {h}" for h in clean_hits])
     return f"Auto-RAG Context:\n{ctx}\n\nUser Query: {user_text}"
 
 async def call_gpt4(msg_history):
@@ -197,8 +208,8 @@ async def xpander_tool(llm_response, message_history):
                     fmt=local_params.get("fmt", "string")
                 )
                 result = r
-            elif tc.name == "search-long-response":
-                r = search_long_response(
+            elif tc.name == "memory-search":
+                r = memory_search(
                     local_params["query"],
                     local_params.get("top_k", 3)
                 )
@@ -250,19 +261,15 @@ async def xpander_tool(llm_response, message_history):
 async def multi_pass_rag(msg: cl.Message):
     """
     Multi-pass approach with streaming:
-      1) Store user query => user_query
-      2) auto-rag prepend
-      3) for i < MAX_ITER:
+      1) auto-rag prepend
+      2) for i < MAX_ITER:
          - call GPT with streaming
          - if GPT calls tools => xpander_tool
          - if GPT has final .content => done
-      4) store final answer => assistant_answer
+      3) store final answer => assistant_answer
     """
-    # 1) store user query
-    vector_store.add_text(msg.content, "user_query")
-
-    # 2) auto-rag
-    user_txt_with_ctx = auto_rag_prepend(msg.content)
+    # 1) auto-rag with more context
+    user_txt_with_ctx = auto_rag_prepend(msg.content, top_k=5)  # Increased context
     message_history = cl.user_session.get("message_history")
     message_history.append({"role": "user", "content": user_txt_with_ctx})
 
@@ -272,19 +279,18 @@ async def multi_pass_rag(msg: cl.Message):
     while cur_iter < MAX_ITER:
         gpt_msg, raw_llm_resp = await call_gpt4(message_history)
         
+        # If we have content but no tool calls, it means GPT used the context
+        if gpt_msg.content and not gpt_msg.tool_calls:
+            message_history.append({"role": "assistant", "content": gpt_msg.content})
+            final_ans = gpt_msg.content
+            await cl.Message(content=final_ans).send()
+            break
+            
         # If we have tool calls, execute them before continuing
         if gpt_msg.tool_calls:
             await xpander_tool(raw_llm_resp, message_history)
             cur_iter += 1
             continue
-        
-        # Only append and show final assistant message if we have content and no tool calls
-        if gpt_msg.content and not gpt_msg.tool_calls:
-            message_history.append({"role": "assistant", "content": gpt_msg.content})
-            final_ans = gpt_msg.content
-            # Send the final answer to the user
-            await cl.Message(content=final_ans).send()
-            break
 
         cur_iter += 1
 

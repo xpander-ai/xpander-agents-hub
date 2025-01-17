@@ -22,10 +22,19 @@ class VectorStore:
 
     def init_store(self):
         """Load or init knowledge_repo. Then read EMBED_CACHE & VECTOR_DB."""
-        os.makedirs(KNOWLEDGE_REPO_DIR, exist_ok=True)
-        self.embed_cache = self.load_json(EMBED_CACHE_FILE, {})
-        self.vector_db = self.load_json(VECTOR_DB_FILE, [])
-        print(f"[INIT] EMBED_CACHE size: {len(self.embed_cache)} | VECTOR_DB entries: {len(self.vector_db)}")
+        try:
+            # Ensure parent directories exist
+            os.makedirs(KNOWLEDGE_REPO_DIR, exist_ok=True)
+            os.makedirs(os.path.dirname(EMBED_CACHE_FILE), exist_ok=True)
+            os.makedirs(os.path.dirname(VECTOR_DB_FILE), exist_ok=True)
+            
+            self.embed_cache = self.load_json(EMBED_CACHE_FILE, {})
+            self.vector_db = self.load_json(VECTOR_DB_FILE, [])
+            print(f"[INIT] EMBED_CACHE size: {len(self.embed_cache)} | VECTOR_DB entries: {len(self.vector_db)}")
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize vector store: {e}")
+            self.embed_cache = {}
+            self.vector_db = []
 
     def load_json(self, path: str, default):
         if not os.path.exists(path):
@@ -75,6 +84,14 @@ class VectorStore:
     def add_text(self, text: str, source: str):
         """Split `text` into ~500-token chunks, embed each, store in `VECTOR_DB`."""
         print(f"[VDB] Storing text from source='{source}', length={len(text)}.")
+        
+        # Check for duplicates first
+        text_hash = hash(text)
+        for entry in self.vector_db:
+            if entry.get("text_hash") == text_hash:
+                print(f"[VDB] Duplicate content detected for source={source}. Skipping.")
+                return
+            
         chunk_size = 500
         try:
             enc = tiktoken.encoding_for_model("gpt-4")
@@ -86,16 +103,22 @@ class VectorStore:
             chunk = enc.decode(tokens[i : i+chunk_size])
             embedding = self.embed_text(chunk)
             entry_id = f"{source}_chunk_{i//chunk_size}"
+            
+            # Add hash for deduplication
             self.vector_db.append({
                 "id": entry_id,
                 "meta": {"source": source},
                 "text": chunk,
+                "text_hash": hash(chunk),
                 "embedding": embedding
             })
             print(f"[VDB] Saved chunk={entry_id}, chunk_length={len(chunk)}")
 
-        self.save_store()
-        print(f"[VDB] Done storing. DB now has {len(self.vector_db)} entries.")
+        try:
+            self.save_store()
+            print(f"[VDB] Done storing. DB now has {len(self.vector_db)} entries.")
+        except Exception as e:
+            print(f"[ERROR] Failed to save vector store: {e}")
 
     def search(self, query: str, top_k: int = 3, min_similarity: float = 0.7) -> List[str]:
         """Return top_k matching chunks from DB as short strings that meet minimum similarity threshold."""
