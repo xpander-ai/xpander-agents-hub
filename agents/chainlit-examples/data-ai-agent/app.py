@@ -133,7 +133,7 @@ async def call_gpt4(msg_history):
     
     start_time = time.time()
     
-    async with cl.Step(name="gpt-4", type="llm") as step:
+    async with cl.Step(name="🤖 GPT-4", type="llm") as step:
         async for chunk in await openai_client.chat.completions.create(messages=msg_history, **settings):
             if not chunk.choices:
                 continue
@@ -217,7 +217,7 @@ async def xpander_tool(llm_response, message_history):
 
     for i, tc in enumerate(tool_calls):
         current_step = cl.context.current_step
-        current_step.name = tc.name
+        current_step.name = f"🔧 Tool: {tc.name}"
         current_step.input = tc.payload
 
         fn_args = llm_response.choices[0].message.tool_calls[i]['function']['arguments']
@@ -344,37 +344,49 @@ async def multi_pass_rag(msg: cl.Message):
          - if GPT has final .content => done
       3) store final answer => assistant_answer
     """
-    # 1) auto-rag with more context
-    user_txt_with_ctx = auto_rag_prepend(msg.content, top_k=5)  # Increased context
-    message_history = cl.user_session.get("message_history")
-    message_history.append({"role": "user", "content": user_txt_with_ctx})
+    # Create a root step to hold all intermediate steps
+    async with cl.Step(name="🧠 Chain-of-Thought", type="run", show_input=False) as root_step:
+        # 1) auto-rag prepend
+        async with cl.Step(name=f"🔍 Context Search", type="search") as search_step:
+            user_txt_with_ctx = auto_rag_prepend(msg.content, top_k=5)  # Increased context
+            search_step.output = user_txt_with_ctx
 
-    cur_iter = 0
-    final_ans = None
+        message_history = cl.user_session.get("message_history")
+        message_history.append({"role": "user", "content": user_txt_with_ctx})
 
-    while cur_iter < MAX_ITER:
-        gpt_msg, raw_llm_resp = await call_gpt4(message_history)
-        
-        # If we have content but no tool calls, it means GPT used the context
-        if gpt_msg.content and not gpt_msg.tool_calls:
-            message_history.append({"role": "assistant", "content": gpt_msg.content})
-            final_ans = gpt_msg.content
-            await cl.Message(content=final_ans).send()
-            break
-            
-        # If we have tool calls, execute them before continuing
-        if gpt_msg.tool_calls:
-            await xpander_tool(raw_llm_resp, message_history)
-            cur_iter += 1
-            continue
+        cur_iter = 0
+        final_ans = None
 
-        cur_iter += 1
+        while cur_iter < MAX_ITER:
+            async with cl.Step(name=f"🤔 Thinking Round {cur_iter + 1}", type="run") as iter_step:
+                gpt_msg, raw_llm_resp = await call_gpt4(message_history)
+                
+                # If we have content but no tool calls, it means GPT used the context
+                if gpt_msg.content and not gpt_msg.tool_calls:
+                    message_history.append({"role": "assistant", "content": gpt_msg.content})
+                    final_ans = gpt_msg.content
+                    iter_step.output = "✨ Final answer generated"
+                    break
+                    
+                # If we have tool calls, execute them before continuing
+                if gpt_msg.tool_calls:
+                    await xpander_tool(raw_llm_resp, message_history)
+                    iter_step.output = f"🛠️ Executed {len(gpt_msg.tool_calls)} tool calls"
+                    cur_iter += 1
+                    continue
 
-    if cur_iter >= MAX_ITER and not final_ans:
-        await cl.Message(content="No final answer after multiple passes.", author="AI Agent").send()
-    
+                cur_iter += 1
+
+        if cur_iter >= MAX_ITER and not final_ans:
+            final_ans = "No final answer after multiple passes."
+            root_step.output = "⚠️ Maximum iterations reached without conclusive answer"
+        else:
+            root_step.output = "✅ Successfully generated response"
+
+    # Send the final answer as a separate message
     if final_ans:
         vector_store.add_text(final_ans, "assistant_answer")
+        await cl.Message(content=final_ans).send()
 
 if __name__ == "__main__":
     from chainlit.cli import run_chainlit
