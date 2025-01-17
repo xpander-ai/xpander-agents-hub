@@ -50,7 +50,7 @@ agent_logs.jsonl
 agent_queries.jsonl
 
 # Environment variables and secrets
-.env*
+.env
 *.key
 secrets/
 
