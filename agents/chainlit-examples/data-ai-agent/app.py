@@ -63,60 +63,89 @@ cl.instrument_openai()
 
 @cl.on_chat_start
 def start_chat():
-    """Initialize chat session."""
+    """Initialize chat session with improved system prompt."""
     cl.user_session.set("cached_outputs", {})
     cl.user_session.set("message_history", [
         {
             "role": "system",
             "content": (
-                "You are an advanced AI with sophisticated memory management capabilities. Follow these guidelines:\n\n"
-                "1. MEMORY SEARCH:\n"
-                "   - For ANY query, ALWAYS check your memory first using semantic search\n"
-                "   - Your memory contains transcripts, summaries, previous answers, and other content\n"
-                "   - If you find relevant information, use it to answer WITHOUT calling other tools\n"
-                "   - Only if no relevant memories are found, then call tools to fetch new information\n\n"
+                "You are an advanced AI with sophisticated memory and retrieval capabilities. Follow these guidelines:\n\n"
+                "1. CONTEXT UTILIZATION:\n"
+                "   - Always analyze the provided context thoroughly\n"
+                "   - Connect information across different context pieces\n"
+                "   - Acknowledge when context might be incomplete\n"
+                "   - Be explicit about which context you're using\n\n"
                 "2. MEMORY MANAGEMENT:\n"
-                "   - You can list all memories using list-memories\n"
-                "   - Get memory statistics with get-memory-stats\n"
-                "   - Delete specific memories by ID using delete-memory\n"
-                "   - Remove all memories from a source using delete-source\n"
-                "   - Clean up duplicates with clean-duplicates\n"
-                "   - Clear all memories using clear-all-memories\n\n"
-                "3. MEMORY HYGIENE:\n"
-                "   - Regularly check for and remove duplicate memories\n"
-                "   - Delete outdated or irrelevant memories when appropriate\n"
-                "   - Keep track of memory sources and their relevance\n"
-                "   - Maintain organized and efficient memory storage\n\n"
-                "4. QUERY LOGGING:\n"
-                "   - All your interactions are logged with token counts, latency, and cost\n"
-                "   - You can read query logs using read-query-logs\n"
-                "   - Get usage statistics with get-query-stats\n"
-                "   - Use this information to optimize your responses\n\n"
-                "Remember: You have full control over your memory system. Use these capabilities to provide accurate, "
-                "consistent, and well-organized responses while maintaining an efficient memory store."
+                "   - Utilize the vector store for semantic search\n"
+                "   - Consider temporal aspects of stored information\n"
+                "   - Maintain context coherence across interactions\n"
+                "   - Clean up outdated or redundant information\n\n"
+                "3. RESPONSE QUALITY:\n"
+                "   - Provide accurate, well-reasoned answers\n"
+                "   - Cite specific context when relevant\n"
+                "   - Acknowledge uncertainty when appropriate\n"
+                "   - Maintain consistency with previous responses\n\n"
+                "4. QUERY HANDLING:\n"
+                "   - Process queries with dynamic similarity thresholds\n"
+                "   - Consider query complexity and length\n"
+                "   - Use appropriate search strategies\n"
+                "   - Track and optimize query performance\n\n"
+                "Remember: Your goal is to provide accurate, contextual, and helpful responses while maintaining "
+                "an efficient and organized knowledge base."
             )
         }
     ])
-    print("[CHAINLIT] on_chat_start complete.")
+    print("[CHAINLIT] Chat session initialized with enhanced system prompt.")
 
 def auto_rag_prepend(user_text: str, top_k: int = 3) -> str:
-    """Do a quick vector search on user_text, prepend best chunks as context."""
-    print(f"[AUTO-RAG] Searching for user_text[:60]={user_text[:60]}")
-    hits = vector_store.search(user_text, top_k=top_k, min_similarity=0.5)  # Lower threshold for better recall
+    """Enhanced RAG with better context handling and query processing."""
+    print(f"[AUTO-RAG] Processing query: {user_text[:60]}")
+    
+    # Clean and preprocess the query
+    query = user_text.strip()
+    if not query:
+        return user_text
+        
+    # Get relevant chunks with dynamic similarity
+    hits = vector_store.search(
+        query=query,
+        top_k=top_k,
+        min_similarity=None  # Use dynamic threshold
+    )
+    
     if not hits:
-        print("[AUTO-RAG] No relevant hits. Returning user text alone.")
+        print("[AUTO-RAG] No relevant hits found.")
         return user_text
     
-    # Clean up the hits to remove the [id] prefix
-    clean_hits = []
+    # Process and format the context
+    contexts = []
     for hit in hits:
+        # Extract the actual text without the ID prefix
         if '] ' in hit:
-            clean_hits.append(hit.split('] ', 1)[1])
+            text = hit.split('] ', 1)[1]
         else:
-            clean_hits.append(hit)
+            text = hit
+            
+        # Clean up the text
+        text = text.strip()
+        if text:
+            contexts.append(text)
     
-    ctx = "\n".join([f"- {h}" for h in clean_hits])
-    return f"Auto-RAG Context:\n{ctx}\n\nUser Query: {user_text}"
+    if not contexts:
+        return user_text
+        
+    # Format context in a more natural way
+    formatted_context = "\n\n".join([
+        f"Context {i+1}:\n{ctx}" 
+        for i, ctx in enumerate(contexts)
+    ])
+    
+    # Construct the final prompt
+    return (
+        f"Based on the following relevant information:\n\n"
+        f"{formatted_context}\n\n"
+        f"Please answer this question: {user_text}"
+    )
 
 async def call_gpt4(msg_history):
     """Helper to avoid confusion. Just calls GPT once with streaming."""
@@ -130,42 +159,49 @@ async def call_gpt4(msg_history):
     collected_chunks = []
     current_tool_calls = []
     current_content = ""
+    msg = None
     
     start_time = time.time()
     
-    async with cl.Step(name="🤖 GPT-4", type="llm") as step:
-        async for chunk in await openai_client.chat.completions.create(messages=msg_history, **settings):
-            if not chunk.choices:
-                continue
-                
-            delta = chunk.choices[0].delta
+    completion = await openai_client.chat.completions.create(messages=msg_history, **settings)
+    
+    async for chunk in completion:
+        if not chunk.choices:
+            continue
             
-            if delta.tool_calls:
-                for tool_call in delta.tool_calls:
-                    if len(current_tool_calls) <= tool_call.index:
-                        current_tool_calls.append({
-                            "id": tool_call.id,
-                            "function": {"name": "", "arguments": ""},
-                            "type": "function"
-                        })
-                    
-                    if tool_call.function.name:
-                        current_tool_calls[tool_call.index]["function"]["name"] = tool_call.function.name
-                    if tool_call.function.arguments:
-                        current_tool_calls[tool_call.index]["function"]["arguments"] += tool_call.function.arguments
-            
-            if delta.content:
-                current_content += delta.content
-                await step.stream_token(delta.content)
+        delta = chunk.choices[0].delta
+        
+        if delta.tool_calls:
+            for tool_call in delta.tool_calls:
+                if len(current_tool_calls) <= tool_call.index:
+                    current_tool_calls.append({
+                        "id": tool_call.id,
+                        "function": {"name": "", "arguments": ""},
+                        "type": "function"
+                    })
                 
-            collected_chunks.append(chunk)
+                if tool_call.function.name:
+                    current_tool_calls[tool_call.index]["function"]["name"] = tool_call.function.name
+                if tool_call.function.arguments:
+                    current_tool_calls[tool_call.index]["function"]["arguments"] += tool_call.function.arguments
         
-        full_response = {
-            "content": current_content,
-            "tool_calls": current_tool_calls if current_tool_calls else None
-        }
-        
-        step.output = current_content if current_content else "Tool call initiated"
+        if delta.content:
+            current_content += delta.content
+            
+        collected_chunks.append(chunk)
+    
+    # Only create and send message if this is a final response (no tool calls)
+    if current_content and not current_tool_calls:
+        msg = cl.Message(content="")
+        await msg.send()
+        # Stream the content after creating the message
+        for char in current_content:
+            await msg.stream_token(char)
+    
+    full_response = {
+        "content": current_content,
+        "tool_calls": current_tool_calls if current_tool_calls else None
+    }
     
     # Log query details
     latency = time.time() - start_time
@@ -217,7 +253,7 @@ async def xpander_tool(llm_response, message_history):
 
     for i, tc in enumerate(tool_calls):
         current_step = cl.context.current_step
-        current_step.name = f"🔧 Tool: {tc.name}"
+        current_step.name = f"xpander-ai-tools"
         current_step.input = tc.payload
 
         fn_args = llm_response.choices[0].message.tool_calls[i]['function']['arguments']
@@ -344,49 +380,40 @@ async def multi_pass_rag(msg: cl.Message):
          - if GPT has final .content => done
       3) store final answer => assistant_answer
     """
-    # Create a root step to hold all intermediate steps
-    async with cl.Step(name="🧠 Chain-of-Thought", type="run", show_input=False) as root_step:
-        # 1) auto-rag prepend
-        async with cl.Step(name=f"🔍 Context Search", type="search") as search_step:
-            user_txt_with_ctx = auto_rag_prepend(msg.content, top_k=5)  # Increased context
-            search_step.output = user_txt_with_ctx
+    # 1) auto-rag prepend
+    user_txt_with_ctx = auto_rag_prepend(msg.content, top_k=5)
 
-        message_history = cl.user_session.get("message_history")
-        message_history.append({"role": "user", "content": user_txt_with_ctx})
+    message_history = cl.user_session.get("message_history")
+    message_history.append({"role": "user", "content": user_txt_with_ctx})
 
-        cur_iter = 0
-        final_ans = None
+    cur_iter = 0
+    final_ans = None
 
-        while cur_iter < MAX_ITER:
-            async with cl.Step(name=f"🤔 Thinking Round {cur_iter + 1}", type="run") as iter_step:
-                gpt_msg, raw_llm_resp = await call_gpt4(message_history)
-                
-                # If we have content but no tool calls, it means GPT used the context
-                if gpt_msg.content and not gpt_msg.tool_calls:
-                    message_history.append({"role": "assistant", "content": gpt_msg.content})
-                    final_ans = gpt_msg.content
-                    iter_step.output = "✨ Final answer generated"
-                    break
-                    
-                # If we have tool calls, execute them before continuing
-                if gpt_msg.tool_calls:
-                    await xpander_tool(raw_llm_resp, message_history)
-                    iter_step.output = f"🛠️ Executed {len(gpt_msg.tool_calls)} tool calls"
-                    cur_iter += 1
-                    continue
+    while cur_iter < MAX_ITER:
+        gpt_msg, raw_llm_resp = await call_gpt4(message_history)
+        
+        # If we have content but no tool calls, it means GPT used the context
+        if gpt_msg.content and not gpt_msg.tool_calls:
+            message_history.append({"role": "assistant", "content": gpt_msg.content})
+            final_ans = gpt_msg.content
+            break
+            
+        # If we have tool calls, execute them before continuing
+        if gpt_msg.tool_calls:
+            await xpander_tool(raw_llm_resp, message_history)
+            
+            cur_iter += 1
+            continue
 
-                cur_iter += 1
+        cur_iter += 1
 
-        if cur_iter >= MAX_ITER and not final_ans:
-            final_ans = "No final answer after multiple passes."
-            root_step.output = "⚠️ Maximum iterations reached without conclusive answer"
-        else:
-            root_step.output = "✅ Successfully generated response"
+    if cur_iter >= MAX_ITER and not final_ans:
+        error_msg = cl.Message(content="⚠️ No final answer after multiple passes.")
+        await error_msg.send()
 
-    # Send the final answer as a separate message
+    # Store the final answer in vector store if we have one
     if final_ans:
         vector_store.add_text(final_ans, "assistant_answer")
-        await cl.Message(content=final_ans).send()
 
 if __name__ == "__main__":
     from chainlit.cli import run_chainlit
