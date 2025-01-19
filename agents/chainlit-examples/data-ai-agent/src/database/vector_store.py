@@ -169,8 +169,51 @@ class VectorStore:
         self.save_json(EMBED_CACHE_FILE, self.embed_cache)
         self.save_json(VECTOR_DB_FILE, self.vector_db)
 
+    def _generate_summary(self, text: str, source: str) -> Dict[str, str]:
+        """Generate a summary and semantic metadata for the text using GPT."""
+        try:
+            client = openai.OpenAI()
+            
+            prompt = f"""Analyze this content and provide a JSON response with these keys:
+- summary: A concise summary (2-3 sentences)
+- topics: Key topics/concepts (comma-separated)
+- content_type: Type of content (e.g., 'API Response', 'Code', 'Documentation')
+
+Source context: {source}
+
+Content to analyze:
+{text[:1000]}... (truncated)
+
+Respond ONLY with a valid JSON object containing the above keys."""
+
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{
+                    "role": "system",
+                    "content": "You are a precise content analyzer. You must respond with valid JSON only."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }]
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            return {
+                "summary": result["summary"],
+                "topics": result["topics"],
+                "content_type": result["content_type"]
+            }
+        except Exception as e:
+            print(f"[ERROR] Summary generation failed: {e}")
+            return {
+                "summary": "Summary generation failed",
+                "topics": "unknown",
+                "content_type": "unknown"
+            }
+
     def add_text(self, text: str, source: str):
-        """Add text to vector store with improved chunking and metadata."""
+        """Add text to vector store with improved chunking, summarization and metadata."""
         print(f"[VDB] Storing text from source='{source}', length={len(text)}.")
         
         # Check for duplicates first
@@ -179,6 +222,9 @@ class VectorStore:
             if entry.get("text_hash") == text_hash:
                 print(f"[VDB] Duplicate content detected for source={source}. Skipping.")
                 return
+        
+        # Generate semantic summary and metadata
+        semantic_metadata = self._generate_summary(text, source)
         
         # Get chunks with position information
         chunks = self.chunk_text(text)
@@ -193,7 +239,7 @@ class VectorStore:
                 
             entry_id = f"{source}_chunk_{i}"
             
-            # Enhanced metadata
+            # Enhanced metadata with summary
             self.vector_db.append({
                 "id": entry_id,
                 "meta": {
@@ -203,6 +249,9 @@ class VectorStore:
                     "start_position": start_pos,
                     "end_position": end_pos,
                     "chunk_size": len(chunk_text),
+                    "summary": semantic_metadata["summary"],
+                    "topics": semantic_metadata["topics"],
+                    "content_type": semantic_metadata["content_type"]
                 },
                 "text": chunk_text,
                 "text_hash": hash(chunk_text),
@@ -210,7 +259,7 @@ class VectorStore:
                 "timestamp": time.time()
             })
             print(f"[VDB] Saved chunk={entry_id}, chunk_length={len(chunk_text)}")
-
+            
         try:
             self.save_store()
             print(f"[VDB] Done storing. DB now has {len(self.vector_db)} entries.")
@@ -262,44 +311,49 @@ class VectorStore:
             
         return sorted(reranked, key=lambda x: x[0], reverse=True)
 
-    def search(self, query: str, top_k: int = 3, min_similarity: Optional[float] = None) -> List[str]:
-        """Enhanced semantic search with dynamic thresholds and reranking."""
-        if not self.vector_db:
-            print("[VDB] DB empty.")
+    def search(self, query: str, top_k: int = 3, min_similarity: float = None) -> List[str]:
+        """
+        Search for similar texts in the vector store.
+        
+        Args:
+            query: The search query
+            top_k: Number of results to return
+            min_similarity: Minimum similarity threshold (0-1)
+            
+        Returns:
+            List of matching texts
+        """
+        if not query:
             return []
             
-        # Get query embedding
-        q_emb = self.embed_text(query)
-        if not q_emb:
-            print("[VDB] Empty embedding for query.")
+        query_embedding = self.embed_text(query)
+        if not query_embedding:
             return []
-
-        # Use dynamic threshold if not specified
-        if min_similarity is None:
-            min_similarity = self._calculate_dynamic_threshold(query)
-
-        # Calculate similarities
-        scored = []
+            
+        results = []
+        similarities = []
+        
+        # Calculate similarities with all entries
         for entry in self.vector_db:
-            emb = entry.get("embedding", [])
-            if not emb:
+            if "embedding" not in entry:
                 continue
                 
-            similarity = self.cos_sim(q_emb, emb)
-            if similarity >= min_similarity:
-                scored.append((similarity, entry["text"], entry["id"]))
-
-        # Rerank results
-        reranked_hits = self._rerank_results(scored, query)
-        hits = reranked_hits[:top_k]
-
-        if hits:
-            print("[VDB] Top hits after reranking:")
-            for i, (score, chunk, cid) in enumerate(hits):
-                snippet = chunk[:60] + "..." if len(chunk) > 60 else chunk
-                print(f" {i+1}) ID={cid}, Score={score:.4f}, chunk={snippet}")
-
-        return [f"[{r[2]}] {r[1]}" for r in hits]
+            similarity = self.cos_sim(query_embedding, entry["embedding"])
+            if min_similarity and similarity < min_similarity:
+                continue
+                
+            similarities.append((similarity, entry))
+            
+        # Sort by similarity and take top_k
+        similarities.sort(key=lambda x: x[0], reverse=True)
+        top_results = similarities[:top_k]
+        
+        # Extract texts
+        for similarity, entry in top_results:
+            if "text" in entry:
+                results.append(entry["text"])
+                
+        return results
 
     def list_memories(self) -> List[Dict[str, Any]]:
         """List all memories with metadata."""

@@ -7,7 +7,7 @@ VECTOR_DB_FILE = os.path.join(KNOWLEDGE_REPO_DIR, "vector_db.json")
 
 # Embedding models
 PRIMARY_EMBED_MODEL = "text-embedding-3-large"
-FALLBACK_EMBED_MODEL = "text-embedding-ada-002"
+FALLBACK_EMBED_MODEL = "text-embedding-3-large"
 TOKEN_THRESHOLD = 3000
 
 # Vector store settings
@@ -20,6 +20,7 @@ MAX_RERANK_CANDIDATES = 10  # Number of candidates to consider for reranking
 
 # API Keys
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+FRIENDLI_TOKEN = os.environ.get("FRIENDLI_TOKEN")
 XPANDER_API_KEY = os.environ.get("XPANDER_API_KEY", "")
 XPANDER_AGENT_ID = os.environ.get("XPANDER_AGENT_ID", "")
 

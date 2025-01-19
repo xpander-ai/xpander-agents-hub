@@ -9,6 +9,7 @@ from src.config.settings import (
     OPENAI_API_KEY,
     XPANDER_API_KEY,
     XPANDER_AGENT_ID,
+    FRIENDLI_TOKEN,
     TOKEN_THRESHOLD,
     MAX_ITER
 )
@@ -34,6 +35,7 @@ from xpander_sdk import XpanderClient, ToolCallType
 
 # Initialize clients
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+friendli_client = AsyncOpenAI(api_key=FRIENDLI_TOKEN, base_url="https://api.friendli.ai/serverless/v1")
 xpander_client = XpanderClient(api_key=XPANDER_API_KEY)
 xpander_agent = xpander_client.agents.get(agent_id=XPANDER_AGENT_ID)
 
@@ -51,6 +53,10 @@ distinct_tools = []
 seen = set()
 
 for tool in combined_tools:
+    # Skip tools starting with Pg
+    if tool['function']['name'].startswith('Pg'):
+        print(f"Skipping tool: {tool['function']['name']}")
+        continue
     tool_serialized = json.dumps(tool, sort_keys=True)
     if tool_serialized not in seen:
         seen.add(tool_serialized)
@@ -69,34 +75,30 @@ def start_chat():
         {
             "role": "system",
             "content": (
-                "You are an advanced AI with sophisticated memory and retrieval capabilities. Follow these guidelines:\n\n"
-                "1. MEMORY USAGE:\n"
-                "   - ALWAYS check memory first using memory-search before using other tools\n"
-                "   - If no context is provided, use memory-search to find relevant information\n"
-                "   - Only proceed with other tools if memory search yields no results\n\n"
-                "2. CONTEXT UTILIZATION:\n"
-                "   - Always analyze the provided context thoroughly\n"
-                "   - Connect information across different context pieces\n"
-                "   - Acknowledge when context might be incomplete\n"
-                "   - Be explicit about which context you're using\n\n"
+                "You are an advanced AI with sophisticated memory and tool capabilities. Follow these guidelines:\n\n"
+                "1. TOOL USAGE:\n"
+                "   - When a user requests an action (summarize, fetch, search, etc.), ALWAYS use the appropriate tool\n"
+                "   - Even if context is provided, you must still use tools to perform the requested action\n"
+                "   - Context is supplementary information only, not a replacement for tool calls\n\n"
+                "2. CONTEXT HANDLING:\n"
+                "   - Context from memory is provided to help inform your actions\n"
+                "   - Use context to understand what's already available\n"
+                "   - But still make appropriate tool calls based on the user's request\n\n"
                 "3. RESPONSE QUALITY:\n"
                 "   - Provide accurate, well-reasoned answers\n"
-                "   - Cite specific context when relevant\n"
-                "   - Acknowledge uncertainty when appropriate\n"
-                "   - Maintain consistency with previous responses\n\n"
-                "4. QUERY HANDLING:\n"
-                "   - Process queries with dynamic similarity thresholds\n"
-                "   - Consider query complexity and length\n"
-                "   - Use appropriate search strategies\n"
-                "   - Track and optimize query performance\n\n"
-                "Remember: Your goal is to provide accurate, contextual, and helpful responses while maintaining "
-                "an efficient and organized knowledge base."
+                "   - Use tools for actions, don't just summarize context\n"
+                "   - Acknowledge uncertainty when appropriate\n\n"
+                "4. SPECIFIC ACTIONS:\n"
+                "   - For YouTube videos: Use fetch-youtube-transcript even if transcript exists in context\n"
+                "   - For summaries: Use appropriate summarization tools\n"
+                "   - For searches: Use memory-search tool\n\n"
+                "Remember: Context helps inform your actions but does not replace the need to use appropriate tools."
             )
         }
     ])
     print("[CHAINLIT] Chat session initialized with enhanced system prompt.")
 
-def auto_rag_prepend(user_text: str, top_k: int = 3) -> str:
+async def auto_rag_prepend(user_text: str, top_k: int = 3) -> str:
     """Enhanced RAG with better context handling and query processing."""
     print(f"[AUTO-RAG] Processing query: {user_text[:60]}")
     
@@ -105,55 +107,58 @@ def auto_rag_prepend(user_text: str, top_k: int = 3) -> str:
     if not query:
         return user_text
         
-    # Get relevant chunks with dynamic similarity
-    hits = vector_store.search(
-        query=query,
-        top_k=top_k,
-        min_similarity=None  # Use dynamic threshold
-    )
-    
-    if not hits:
-        print("[AUTO-RAG] No relevant hits found in initial search.")
-        # Instead of just returning, suggest using memory-search
-        return (
-            "No immediately relevant information found in memory. "
-            "Please use the memory-search tool to look for related information before proceeding.\n\n"
-            f"Original question: {user_text}"
-        )
-    
-    # Process and format the context
-    contexts = []
-    for hit in hits:
-        # Extract the actual text without the ID prefix
-        if '] ' in hit:
-            text = hit.split('] ', 1)[1]
-        else:
-            text = hit
-            
-        # Clean up the text
-        text = text.strip()
-        if text:
-            contexts.append(text)
-    
-    if not contexts:
-        return (
-            "No immediately relevant information found in memory. "
-            "Please use the memory-search tool to look for related information before proceeding.\n\n"
-            f"Original question: {user_text}"
-        )
+    # If it's a YouTube URL, try to find existing transcript first
+    if "youtube.com/watch?v=" in query or "youtu.be/" in query:
+        video_id = query.split("v=")[-1].split("&")[0]
+        source_id = f"youtube_transcript_{video_id}"
         
-    # Format context in a more natural way
-    formatted_context = "\n\n".join([
-        f"Context {i+1}:\n{ctx}" 
-        for i, ctx in enumerate(contexts)
-    ])
-    
-    # Construct the final prompt
-    return (
-        f"Based on the following relevant information:\n\n"
-        f"{formatted_context}\n\n"
-        f"Please answer this question: {user_text}"
-    )
+        try:
+            # Search specifically for this transcript
+            hits = vector_store.search(query=source_id, top_k=1)
+            
+            if hits:
+                print(f"[AUTO-RAG] Found existing transcript for video {video_id}")
+                content = hits[0]
+                return (
+                    "Note: While this video's transcript exists in memory, you should still use the fetch-youtube-transcript "
+                    "tool to ensure you're working with the most up-to-date version.\n\n"
+                    f"Previous transcript for reference:\n{content}\n\n"
+                    f"User query: {user_text}"
+                )
+        except Exception as e:
+            print(f"[AUTO-RAG] Error searching for transcript: {e}")
+            
+    # Regular search for other queries or if no transcript found
+    try:
+        hits = vector_store.search(query=query, top_k=top_k)
+        
+        if not hits:
+            print("[AUTO-RAG] No relevant hits found in initial search.")
+            return user_text
+            
+        # Process and format the context
+        contexts = []
+        for hit in hits:
+            if isinstance(hit, str):
+                # Skip assistant answers
+                if hit.startswith('[assistant_answer]'):
+                    continue
+                contexts.append(hit.strip())
+        
+        if not contexts:
+            return user_text
+            
+        # Combine contexts and original query
+        context_str = "\n\n".join(contexts)
+        return (
+            "Note: The following context is for reference only. You should still use appropriate tools to handle the user's request.\n\n"
+            f"Context from memory:\n{context_str}\n\n"
+            f"User query: {user_text}"
+        )
+            
+    except Exception as e:
+        print(f"[AUTO-RAG] Search failed: {e}")
+        return user_text
 
 async def call_gpt4(msg_history):
     """Helper to avoid confusion. Just calls GPT once with streaming."""
@@ -163,15 +168,22 @@ async def call_gpt4(msg_history):
         "tool_choice": "auto",
         "stream": True
     }
+    friendli_settings = {
+        "model": "meta-llama-3.1-8b-instruct",
+        "tools": distinct_tools,
+        "temperature": 0.0,
+        "tool_choice": "auto",
+        "stream": True
+    }
     
     collected_chunks = []
     current_tool_calls = []
     current_content = ""
-    msg = None
     
     start_time = time.time()
     
     completion = await openai_client.chat.completions.create(messages=msg_history, **settings)
+    # completion = await friendli_client.chat.completions.create(messages=msg_history, **friendli_settings)
     
     async for chunk in completion:
         if not chunk.choices:
@@ -197,14 +209,6 @@ async def call_gpt4(msg_history):
             current_content += delta.content
             
         collected_chunks.append(chunk)
-    
-    # Only create and send message if this is a final response (no tool calls)
-    if current_content and not current_tool_calls:
-        msg = cl.Message(content="")
-        await msg.send()
-        # Stream the content after creating the message
-        for char in current_content:
-            await msg.stream_token(char)
     
     full_response = {
         "content": current_content,
@@ -271,32 +275,97 @@ async def xpander_tool(llm_response, message_history):
         if tc.type == ToolCallType.LOCAL:
             current_step.input = local_params
             if tc.name == "fetch-youtube-transcript":
-                r = fetch_youtube_transcript(local_params["video_url"])
-                if "transcript" in r:
-                    text = r["transcript"]
-                    tok = len(tiktoken.encoding_for_model("gpt-4").encode(text))
-                    vector_store.add_text(text, local_params["video_url"])
-                    if tok > TOKEN_THRESHOLD:
-                        cached_outputs["transcript_text"] = text
-                        result = {"info": "Transcript chunked into DB."}
-                    else:
-                        cached_outputs["transcript_text"] = text
-                        result = {"transcript": text}
-                else:
+                # Optimized YouTube handling
+                video_url = local_params["video_url"]
+                video_id = video_url.split("v=")[-1].split("&")[0]
+                file_path = f"knowledge_repo/{video_id}_transcript.txt"
+                
+                # Fetch and process transcript in one go
+                r = fetch_youtube_transcript(video_url)
+                if not r.get("success"):
                     result = r
+                    current_step.output = result
+                    message_history.append({
+                        "role": "function",
+                        "name": tc.name,
+                        "content": json.dumps(result)
+                    })
+                    continue
+                
+                # Save transcript file and store in vector DB
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(r.get("transcript", ""))
+                vector_store.add_text(r.get("transcript", ""), f"youtube_transcript_{video_id}")
+                
+                # Generate summary file immediately
+                if r.get("summary"):
+                    summary_file = await generate_summary_file(
+                        r["summary"],
+                        f"YouTube_Summary_{video_id}"
+                    )
+                    # Add file to message attachments
+                    if not hasattr(current_step, "files"):
+                        current_step.files = []
+                    current_step.files.append(summary_file)
+                
+                result = {
+                    **r,
+                    "file_path": file_path,
+                    "note": "📄 Summary file has been generated and transcript saved."
+                }
+                
+                # Add immediate summary response to avoid redundant reads
+                message_history.append({
+                    "role": "function",
+                    "name": tc.name,
+                    "content": json.dumps(result)
+                })
+                message_history.append({
+                    "role": "assistant",
+                    "content": f"""Here's a summary of the video:
+
+{r.get('summary', '')}
+
+Key topics covered: {r.get('topics', '')}
+
+I've saved both the full transcript and a detailed summary file for your reference. Would you like me to:
+1. Analyze any specific aspects of the content?
+2. Focus on particular topics mentioned?
+3. Provide more details about certain parts?
+
+Just let me know what interests you most."""
+                })
+                current_step.output = result
+                continue
+                
+            elif tc.name == "read-file":
+                # Check if we already have this content in memory_history
+                file_path = local_params["path"]
+                if "transcript" in file_path:
+                    video_id = file_path.split("/")[-1].replace("_transcript.txt", "")
+                    # Search in message history first
+                    for msg in reversed(message_history):
+                        if msg["role"] == "function" and msg["name"] == "fetch-youtube-transcript":
+                            try:
+                                content = json.loads(msg["content"])
+                                if content.get("video_id") == video_id:
+                                    result = {"content": content.get("transcript", "")}
+                                    break
+                            except:
+                                pass
+                
+                # If not found in history, try reading file
+                if not result:
+                    result = read_file(file_path, fmt=local_params.get("fmt", "string"))
+                
             elif tc.name == "write-file":
-                w = write_file(
+                w = await write_file(
                     local_params["path"],
                     local_params["fileContent"],
-                    local_params["fileType"]
+                    local_params.get("fileType", "text")
                 )
-                result.update(w)
-            elif tc.name == "read-file":
-                r = read_file(
-                    local_params["path"],
-                    fmt=local_params.get("fmt", "string")
-                )
-                result = r
+                result = w
             elif tc.name == "memory-search":
                 r = memory_search(
                     local_params["query"],
@@ -341,7 +410,10 @@ async def xpander_tool(llm_response, message_history):
             tok = len(tiktoken.encoding_for_model("gpt-4").encode(text_json))
             if tok > TOKEN_THRESHOLD:
                 vector_store.add_text(text_json, tc.name)
-                result = {"info": "Tool result huge => chunked in DB."}
+                result = {
+                    "info": "Tool result huge => chunked rest of the data to DB.",
+                    "content": text_json[:int(TOKEN_THRESHOLD * 0.8)]
+                }
 
             current_step.output = result
             current_step.language = "json"
@@ -350,6 +422,13 @@ async def xpander_tool(llm_response, message_history):
                 "name": tc.name,
                 "content": json.dumps(result)
             })
+            
+            # For YouTube transcripts, add a helpful next step suggestion
+            if tc.name == "fetch-youtube-transcript":
+                message_history.append({
+                    "role": "assistant",
+                    "content": "I've fetched and processed the transcript. The summary has been saved and is ready for your review. Would you like me to:\n1. Analyze specific aspects of the content\n2. Generate a more detailed summary\n3. Extract key topics or themes\n\nJust let me know what interests you most about this video."
+                })
         else:
             function_response = xpander_agent.run_tool(tc)
             text_repr = json.dumps(function_response.result, ensure_ascii=False)
@@ -377,19 +456,78 @@ async def xpander_tool(llm_response, message_history):
 
     cl.user_session.set("cached_outputs", cached_outputs)
 
+async def generate_summary_file(content: str, title: str) -> cl.File:
+    """Generate a downloadable summary file with proper formatting."""
+    if not content or not title:
+        print(f"[ERROR] Cannot generate summary file: content={bool(content)}, title={bool(title)}")
+        return None
+        
+    # Create safe filename
+    safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    if not safe_title:
+        safe_title = f"summary_{int(time.time())}"
+    
+    # Format content
+    summary_content = f"""# {title}
+
+## Summary
+{content}
+
+## Metadata
+- Generated on: {time.strftime('%Y-%m-%d %H:%M:%S')}
+- Source: {title}
+"""
+    
+    try:
+        # Ensure directory exists
+        dir_path = "knowledge_repo/summaries"
+        os.makedirs(dir_path, exist_ok=True)
+        
+        # Create full file path
+        file_path = os.path.join(dir_path, f"{safe_title}.md")
+        
+        print(f"[DEBUG] Writing summary to {file_path}")
+        print(f"[DEBUG] Content length: {len(summary_content)}")
+        
+        # Write file with explicit encoding and verification
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(summary_content)
+            f.flush()
+            os.fsync(f.fileno())
+        
+        # Verify file was written correctly
+        if os.path.exists(file_path):
+            size = os.path.getsize(file_path)
+            if size > 0:
+                print(f"[INFO] Successfully wrote summary ({size} bytes) to {file_path}")
+                return cl.File(name=os.path.basename(file_path), path=file_path)
+            else:
+                print(f"[ERROR] File was created but is empty: {file_path}")
+        else:
+            print(f"[ERROR] File was not created: {file_path}")
+            
+        return None
+    except Exception as e:
+        print(f"[ERROR] Failed to generate summary file: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 @cl.on_message
 async def multi_pass_rag(msg: cl.Message):
     """
-    Multi-pass approach with streaming:
+    Multi-pass approach with streaming and enhanced summary generation:
       1) auto-rag prepend
       2) for i < MAX_ITER:
          - call GPT with streaming
          - if GPT calls tools => xpander_tool
          - if GPT has final .content => done
-      3) store final answer => assistant_answer
+      3) For research/summary requests:
+         - Generate downloadable summary file
+         - Store in vector store
     """
     # 1) auto-rag prepend
-    user_txt_with_ctx = auto_rag_prepend(msg.content, top_k=5)
+    user_txt_with_ctx = await auto_rag_prepend(msg.content, top_k=5)
 
     message_history = cl.user_session.get("message_history")
     message_history.append({"role": "user", "content": user_txt_with_ctx})
@@ -404,6 +542,44 @@ async def multi_pass_rag(msg: cl.Message):
         if gpt_msg.content and not gpt_msg.tool_calls:
             message_history.append({"role": "assistant", "content": gpt_msg.content})
             final_ans = gpt_msg.content
+            
+            # Create and send the final message
+            final_message = cl.Message(content="")
+            await final_message.send()
+            
+            # Stream the content
+            for char in final_ans:
+                await final_message.stream_token(char)
+            
+            # For research/summary requests, generate a downloadable file
+            is_research = any(word in msg.content.lower() for word in ["summarize", "research", "analyze", "study"])
+            if is_research and len(final_ans) > 500:  # Only for longer summaries
+                try:
+                    # Extract title from content or use timestamp
+                    if "youtube.com/watch?v=" in msg.content:
+                        video_id = msg.content.split("v=")[-1].split("&")[0]
+                        title = f"YouTube_Summary_{video_id}"
+                    else:
+                        title = f"Research_Summary_{int(time.time())}"
+                    
+                    # Generate and attach summary file
+                    summary_file = await generate_summary_file(final_ans, title)
+                    if summary_file:
+                        # Create a new message for the file attachment
+                        file_message = cl.Message(content="📄 Here's your downloadable summary:")
+                        await file_message.send()
+                        
+                        # Attach the file in a separate step
+                        elements = [summary_file]
+                        await cl.Message(content="", elements=elements).send()
+                        
+                except Exception as e:
+                    print(f"Error generating summary file: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
+            # Ensure message is complete
+            await final_message.update()
             break
             
         # If we have tool calls, execute them before continuing
