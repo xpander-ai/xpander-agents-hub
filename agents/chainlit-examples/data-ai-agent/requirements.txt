@@ -1,6 +1,6 @@
 chainlit
 openai
-xpander-sdk==1.24.0
+xpander-sdk
 youtube_transcript_api
 tiktoken
 numpy

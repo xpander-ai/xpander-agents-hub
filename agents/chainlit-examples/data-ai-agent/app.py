@@ -11,7 +11,9 @@ from src.config.settings import (
     XPANDER_AGENT_ID,
     FRIENDLI_TOKEN,
     TOKEN_THRESHOLD,
-    MAX_ITER
+    MAX_ITER,
+    XPANDER_ORGANIZATION_ID,
+    XPANDER_BASE_URL
 )
 from src.database.vector_store import vector_store
 from src.tools.local_tools import (
@@ -31,36 +33,45 @@ from src.tools.local_tools import (
 )
 from src.utils.query_logger import query_logger
 
-from xpander_sdk import XpanderClient, ToolCallType
+from xpander_sdk import XpanderClient, ToolCallType, LLMProvider
 
 # Initialize clients
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 friendli_client = AsyncOpenAI(api_key=FRIENDLI_TOKEN, base_url="https://api.friendli.ai/serverless/v1")
-xpander_client = XpanderClient(api_key=XPANDER_API_KEY)
+# load the client
+xpander_client = XpanderClient(api_key=XPANDER_API_KEY, organization_id="")
+# get the agent
 xpander_agent = xpander_client.agents.get(agent_id=XPANDER_AGENT_ID)
+
+# create execution
+xpander_agent.invoke_agent("Get only the longest readable tag")
+
+# init the memory
+xpander_agent.memory.select_llm_provider(llm_provider=LLMProvider.OPEN_AI)
+xpander_agent.memory.initialize_thread(input=xpander_agent.execution.input_message,instructions=xpander_agent.instructions)
 
 # Add tools to agent
 xpander_agent.add_local_tools(local_tools)
 tools = xpander_agent.get_tools()
 
 # Combine tools from both sources
-tools_from_get_tools = xpander_agent.get_tools()
-tools_from_retrieve_graph_tools = xpander_agent.retrieve_all_graph_tools()
+# tools_from_get_tools = xpander_agent.get_tools()
+# tools_from_retrieve_graph_tools = xpander_agent.retrieve_all_graph_tools()
 
 # Combine and deduplicate tools
-combined_tools = tools_from_get_tools + tools_from_retrieve_graph_tools
-distinct_tools = []
-seen = set()
+# combined_tools = tools_from_get_tools + tools_from_retrieve_graph_tools
+# distinct_tools = []
+# seen = set()
 
-for tool in combined_tools:
-    # Skip tools starting with Pg
-    if tool['function']['name'].startswith('Pg'):
-        print(f"Skipping tool: {tool['function']['name']}")
-        continue
-    tool_serialized = json.dumps(tool, sort_keys=True)
-    if tool_serialized not in seen:
-        seen.add(tool_serialized)
-        distinct_tools.append(tool)
+# for tool in combined_tools:
+#     # Skip tools starting with Pg
+#     if tool['function']['name'].startswith('Pg'):
+#         print(f"Skipping tool: {tool['function']['name']}")
+#         continue
+#     tool_serialized = json.dumps(tool, sort_keys=True)
+#     if tool_serialized not in seen:
+#         seen.add(tool_serialized)
+#         distinct_tools.append(tool)
 
 # ----------------------------------------------------------------
 # Chainlit setup
@@ -164,13 +175,13 @@ async def call_gpt4(msg_history):
     """Helper to avoid confusion. Just calls GPT once with streaming."""
     settings = {
         "model": "gpt-4",
-        "tools": distinct_tools,
+        "tools": tools,
         "tool_choice": "auto",
         "stream": True
     }
     friendli_settings = {
         "model": "meta-llama-3.1-8b-instruct",
-        "tools": distinct_tools,
+        "tools": tools,
         "temperature": 0.0,
         "tool_choice": "auto",
         "stream": True

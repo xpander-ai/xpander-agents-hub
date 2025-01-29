@@ -23,6 +23,8 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 FRIENDLI_TOKEN = os.environ.get("FRIENDLI_TOKEN")
 XPANDER_API_KEY = os.environ.get("XPANDER_API_KEY", "")
 XPANDER_AGENT_ID = os.environ.get("XPANDER_AGENT_ID", "")
+XPANDER_ORGANIZATION_ID = os.environ.get("XPANDER_ORGANIZATION_ID", "")
+XPANDER_BASE_URL = os.environ.get("XPANDER_BASE_URL", "")
 
 # Constants
 MAX_ITER = 5  # maximum GPT calls if it keeps calling tools 
