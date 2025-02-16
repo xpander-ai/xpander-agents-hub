@@ -1,3 +1,0 @@
-chainlit
-openai
-xpander-sdk

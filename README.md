@@ -1,116 +1,118 @@
-# xpander-agents-hub
+<div align="center">
+  <h1>🤖 XPander Agents Hub</h1>
+  <p><strong>Production-Grade Operating System for AI Agents</strong></p>
+  <a href="https://www.xpander.ai">
+    <img src="https://img.shields.io/badge/powered%20by-XPander-blue" alt="Powered by XPander">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+  </a>
+  <a href="https://www.xpander.ai/docs">
+    <img src="https://img.shields.io/badge/docs-latest-orange" alt="Documentation">
+  </a>
+</div>
 
-A comprehensive collection of examples and implementations demonstrating various ways to build and deploy AI agents using [xpander.ai](https://www.xpander.ai/).
+<hr>
 
-## Overview
+## 🌟 Overview
 
-This repository serves as a hub for different implementation patterns of xpander AI agents, showcasing various architectures, deployment methods, and integrations with different LLM providers.
+XPander is a production-grade operating system for AI agents, designed to bring enterprise-level reliability and efficiency to complex automation workflows. Through its unique Agent Graph System, XPander ensures structured state management and dynamic tool connectivity, enabling consistent and accurate task execution at scale.
 
-## Features
+## 🎯 Key Capabilities
 
-- 🐳 Standalone applications with Docker support
-- 📓 Jupyter notebook examples
-- 🤖 Multiple agent architectures
-- 🔌 Integration examples with various LLM providers:
-  - OpenAI
-  - Anthropic
-  - And more...
+- **Agent Graph System**: Enforces structured state management and workflow consistency
+- **Universal Framework Support**: Compatible with all major agent frameworks and LLM providers
+- **Hybrid Deployment**: Available as cloud service or fully local (on-premise) deployment
+- **Enterprise Security**: SOC 2 compliant with robust data privacy controls
+- **Production Reliability**: Built-in monitoring, logging, and error handling
 
-## Getting Started
+## 💡 Core Features
 
-1. Sign up at [xpander.ai](https://www.xpander.ai/)
-2. Obtain your API credentials
-3. Clone this repository:
+### Agent Management
+- **State Management**: Structured handling of agent states and transitions
+- **Tool Connectivity**: Dynamic integration with external tools and APIs
+- **Workflow Orchestration**: Complex multi-step automation handling
 
+### Enterprise Integration
+- **Framework Compatibility**: Works with LangChain, AutoGPT, and custom frameworks
+- **LLM Provider Support**: OpenAI, Anthropic, Azure OpenAI, and others
+- **Security Controls**: Role-based access, audit logging, and data encryption
 
-bash
-git clone https://github.com/yourusername/xpander-agents-hub.git
+### Deployment Options
+- **Cloud Service**: Fully managed SaaS deployment
+- **On-Premise**: Complete local deployment for data sovereignty
+- **Hybrid Model**: Flexible combination of cloud and local components
 
-## Repository Structure
+## 🚀 Getting Started
 
+```python
+from xpander import Agent, Graph, Tools
 
-xpander-agents-hub/
-├── notebooks/ # Jupyter notebooks with examples
-├── standalone/ # Standalone application examples
-│ └── docker/ # Dockerized implementations
-├── architectures/ # Different agent architecture examples
-└── providers/ # LLM provider-specific implementations
+# Initialize the Agent Graph
+graph = Graph("financial_analysis")
 
-## Examples Include
+# Create specialized agents
+market_analyzer = Agent("market_analyzer", tools=[Tools.MARKET_DATA, Tools.ANALYSIS])
+risk_assessor = Agent("risk_assessor", tools=[Tools.RISK_METRICS])
 
-- Basic agent implementation
-- Multi-agent systems
-- Agent orchestration
-- Custom tool integration
-- API connection examples
+# Define workflow
+graph.connect(market_analyzer, risk_assessor)
+graph.add_state_validation("market_analysis_complete")
 
-## Quick Example
-
-
-python
-```
-import xpander_client
-import openai
-Initialize xpander client
-xpander_client = xpander_client.Client(api_key="your-api-key")
-Get available tools
-tools = xpander_client.tools()
-Create an agent with OpenAI
-response = openai_client.chat.completions.create(
-model="gpt-4",
-messages=[{"role": "user", "content": "Your prompt here"}],
-tools=tools,
-tool_choice="auto"
-)
-Execute the agent's action
-xpander_client.xpander_tool_call(response)
+# Execute workflow
+result = graph.execute("Analyze market risks for Portfolio A")
 ```
 
-## Benefits of Using xpander
+## 📊 Use Cases
 
-- 🚀 Rapid API integration through AI-ready connectors
-- 📊 Automated graph generation for API dependencies
-- 🔄 Simplified workflow creation
-- 🛠️ Reduced development time
-- 🔌 Easy integration with multiple LLM providers
+### Financial Services
+- Automated Trading Systems
+- Risk Assessment Workflows
+- Portfolio Management
+- Compliance Monitoring
 
-## Contributing
+### Enterprise Automation
+- Business Process Automation
+- Document Processing
+- Customer Service Operations
+- Data Analysis Pipelines
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## 💪 Why XPander?
 
-## License
+- **Reduced Complexity**: 80% less code for complex agent workflows
+- **Enhanced Reliability**: Built-in error handling and state management
+- **Enterprise Ready**: Production-grade security and compliance
+- **Flexible Integration**: Works with existing tools and frameworks
+- **Scalable Architecture**: Handles complex multi-agent systems
 
-MIT License
+## 📚 Documentation & Resources
 
-Copyright (c) 2024 [Your Name or Organization]
+- [Technical Documentation](https://www.xpander.ai/docs)
+- [API Reference](https://www.xpander.ai/docs/api)
+- [Deployment Guide](https://www.xpander.ai/docs/deployment)
+- [Security Overview](https://www.xpander.ai/security)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## 🤝 Enterprise Support
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+- [Schedule Demo](https://www.xpander.ai/demo)
+- [Enterprise Pricing](https://www.xpander.ai/enterprise)
+- [Custom Solutions](https://www.xpander.ai/solutions)
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+## ⚖️ License
 
-## Support
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-For support and questions:
-- Visit [xpander.ai](https://www.xpander.ai/)
-- Book a demo through the website
-- Contact support through the platform
+## 🔒 Security
 
-## Disclaimer
+XPander is SOC 2 compliant and provides enterprise-grade security features. For security inquiries or vulnerability reporting, please contact security@xpander.ai.
 
-This is a community repository and is not officially maintained by xpander.ai.
+<div align="center">
+  <br>
+  <a href="https://www.xpander.ai/get-started">
+    <strong>Deploy Production-Grade AI Agents Today →</strong>
+  </a>
+  <br>
+  <br>
+</div>
 
 

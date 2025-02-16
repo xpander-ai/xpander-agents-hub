@@ -1,6 +1,0 @@
-chainlit
-openai
-xpander-sdk
-youtube_transcript_api
-tiktoken
-numpy
