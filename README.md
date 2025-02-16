@@ -1,118 +1,258 @@
 <div align="center">
   <h1>🤖 XPander Agents Hub</h1>
-  <p><strong>Production-Grade Operating System for AI Agents</strong></p>
+  <p><strong>Examples and Templates for Building AI Agents with xpander.ai</strong></p>
   <a href="https://www.xpander.ai">
-    <img src="https://img.shields.io/badge/powered%20by-XPander-blue" alt="Powered by XPander">
+    <img src="https://img.shields.io/badge/powered%20by-XPander-blue" alt="Powered by xpander.ai">
   </a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="License">
   </a>
   <a href="https://www.xpander.ai/docs">
-    <img src="https://img.shields.io/badge/docs-latest-orange" alt="Documentation">
+    <img src="https://img.shields.io/badge/docs-latest-orange" alt="Platform Documentation">
   </a>
 </div>
 
 <hr>
 
-## 🌟 Overview
+## Overview
 
-XPander is a production-grade operating system for AI agents, designed to bring enterprise-level reliability and efficiency to complex automation workflows. Through its unique Agent Graph System, XPander ensures structured state management and dynamic tool connectivity, enabling consistent and accurate task execution at scale.
+This repository contains examples, templates, and best practices for building and managing AI agents using the xpander.ai platform. Whether you're migrating existing agents or building new ones, you'll find resources to help you leverage xpander.ai's state management capabilities.
 
-## 🎯 Key Capabilities
+## What's Inside
 
-- **Agent Graph System**: Enforces structured state management and workflow consistency
-- **Universal Framework Support**: Compatible with all major agent frameworks and LLM providers
-- **Hybrid Deployment**: Available as cloud service or fully local (on-premise) deployment
-- **Enterprise Security**: SOC 2 compliant with robust data privacy controls
-- **Production Reliability**: Built-in monitoring, logging, and error handling
+### Getting Started
 
-## 💡 Core Features
+- Quick setup guides for connecting your first agent
+- Configuration templates for different use cases
+- Best practices for state management
 
-### Agent Management
-- **State Management**: Structured handling of agent states and transitions
-- **Tool Connectivity**: Dynamic integration with external tools and APIs
-- **Workflow Orchestration**: Complex multi-step automation handling
+### Sample Implementations
 
-### Enterprise Integration
-- **Framework Compatibility**: Works with LangChain, AutoGPT, and custom frameworks
-- **LLM Provider Support**: OpenAI, Anthropic, Azure OpenAI, and others
-- **Security Controls**: Role-based access, audit logging, and data encryption
+- Integration examples with popular frameworks
+- LLM provider configurations
+- Real-world use cases and patterns
 
-### Deployment Options
-- **Cloud Service**: Fully managed SaaS deployment
-- **On-Premise**: Complete local deployment for data sovereignty
-- **Hybrid Model**: Flexible combination of cloud and local components
+## Repository Structure
 
-## 🚀 Getting Started
-
-```python
-from xpander import Agent, Graph, Tools
-
-# Initialize the Agent Graph
-graph = Graph("financial_analysis")
-
-# Create specialized agents
-market_analyzer = Agent("market_analyzer", tools=[Tools.MARKET_DATA, Tools.ANALYSIS])
-risk_assessor = Agent("risk_assessor", tools=[Tools.RISK_METRICS])
-
-# Define workflow
-graph.connect(market_analyzer, risk_assessor)
-graph.add_state_validation("market_analysis_complete")
-
-# Execute workflow
-result = graph.execute("Analyze market risks for Portfolio A")
+```
+.
+├── Getting-Started/
+│   ├── connect-existing-agent/    # Guide for existing agents
+│   ├── create-new-agent/         # Templates for new agents
+│   └── configuration/            # Platform configuration
+├── Samples/
+│   ├── Frameworks/              # Framework integrations
+│   │   ├── chainlit/           # Chainlit examples
+│   │   └── langchain/          # LangChain examples
+│   └── LLM-Providers/          # LLM configuration examples
+└── Use-Cases/                   # Industry-specific implementations
 ```
 
-## 📊 Use Cases
+## Quick Start
 
-### Financial Services
-- Automated Trading Systems
-- Risk Assessment Workflows
-- Portfolio Management
-- Compliance Monitoring
+The xpander.ai platform manages state transitions and multi-agent orchestration automatically. Here's how to integrate with it:
 
-### Enterprise Automation
-- Business Process Automation
-- Document Processing
-- Customer Service Operations
-- Data Analysis Pipelines
+### 1. Setting Up Your Environment
 
-## 💪 Why XPander?
+```python
+from xpander_sdk import XpanderClient, ToolCallResult
+from openai import OpenAI
+from dotenv import load_dotenv
+from os import environ
 
-- **Reduced Complexity**: 80% less code for complex agent workflows
-- **Enhanced Reliability**: Built-in error handling and state management
-- **Enterprise Ready**: Production-grade security and compliance
-- **Flexible Integration**: Works with existing tools and frameworks
-- **Scalable Architecture**: Handles complex multi-agent systems
+load_dotenv()
 
-## 📚 Documentation & Resources
+# Configure your API keys
+OPENAI_API_KEY = environ["OPENAI_API_KEY"]
+XPANDER_API_KEY = environ["XPANDER_API_KEY"]
+XPANDER_AGENT_ID = environ["XPANDER_AGENT_ID_MULTI"]
 
-- [Technical Documentation](https://www.xpander.ai/docs)
-- [API Reference](https://www.xpander.ai/docs/api)
-- [Deployment Guide](https://www.xpander.ai/docs/deployment)
-- [Security Overview](https://www.xpander.ai/security)
+# Initialize clients
+xpander_client = XpanderClient(api_key=XPANDER_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+```
 
-## 🤝 Enterprise Support
+### 2. State Management and Multi-Agent Execution
 
-- [Schedule Demo](https://www.xpander.ai/demo)
-- [Enterprise Pricing](https://www.xpander.ai/enterprise)
-- [Custom Solutions](https://www.xpander.ai/solutions)
+```python
+# Load the agent - xpander.ai manages its state and available tools
+agent = xpander_client.agents.get(agent_id=XPANDER_AGENT_ID)
 
-## ⚖️ License
+# Add a task - this initializes the execution state
+agent.add_task("""
+Search for 2 startups in the AI sector and get LinkedIn profiles of their founders.
+""")
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+# Initialize agent's memory with context and instructions
+# This sets up the initial state and available tools
+agent.memory.init_messages(input=agent.execution.input_message, instructions=agent.instructions)
 
-## 🔒 Security
+# The state machine loop - xpander.ai handles:
+# - State transitions between agents
+# - Tool availability per state
+# - Context preservation
+# - Execution scheduling
+while not agent.is_finished():
+    # Each iteration may involve different agents based on the current state
+    response = openai_client.chat.completions.create(
+        model="gpt-4",
+        messages=agent.messages,  # Contains state-specific context
+        tools=agent.get_tools(),  # Tools available in current state
+        tool_choice=agent.tool_choice,
+        temperature=0.0
+    )
+        
+    # Update agent state with new messages
+    agent.add_messages(response.model_dump())
+    
+    # Execute tools based on current state permissions
+    tool_calls = XpanderClient.extract_tool_calls(llm_response=response.model_dump())
+    agent.run_tools(tool_calls=tool_calls)
+    # xpander.ai automatically:
+    # - Validates tool permissions
+    # - Manages state transitions
+    # - Preserves context between states
+    # - Schedules next agent if needed
 
-XPander is SOC 2 compliant and provides enterprise-grade security features. For security inquiries or vulnerability reporting, please contact security@xpander.ai.
+# Retrieve final results across all agent states
+execution_result = agent.retrieve_execution_result()
+print("Status:", execution_result.status)
+print("Result:", execution_result.result)
+```
 
-<div align="center">
-  <br>
-  <a href="https://www.xpander.ai/get-started">
-    <strong>Deploy Production-Grade AI Agents Today →</strong>
-  </a>
-  <br>
-  <br>
-</div>
+### 3. Environment Configuration
 
+Create a `.env` file in your project root:
 
+```bash
+OPENAI_API_KEY=your_openai_api_key
+XPANDER_API_KEY=your_xpander_api_key
+XPANDER_AGENT_ID_MULTI=your_agent_id
+```
+
+### Handling High-Volume Tasks from Multiple Sources
+
+In enterprise environments, AI agents often need to handle hundreds of concurrent tasks from various sources:
+- Slack messages and commands
+- Web UI interactions
+- REST API calls
+- Webhook events
+- Third-party integrations
+
+This creates several challenges that xpander.ai's state management solves:
+
+1. **Task Queuing and Prioritization**
+  
+```python
+# Tasks can come from multiple sources simultaneously
+agent.add_task(
+    input="Analyze customer feedback",
+    source="slack",
+    priority="high",
+    metadata={
+        "channel": "customer-support",
+        "requester": "support-team"
+    }
+)
+
+# xpander.ai handles:
+# - Task prioritization
+# - Resource allocation
+# - State preservation for long-running tasks
+```
+
+2. **Long-Running Task Management**
+
+```python
+# Tasks can be paused and resumed across sessions
+task_id = agent.add_task("Generate quarterly report")
+
+# Even if the task takes days and requires external input
+# xpander.ai maintains state and context
+status = agent.get_task_status(task_id)
+if status.awaiting_input:
+    agent.provide_task_input(task_id, user_input)
+```
+
+3. **Concurrent Execution with State Isolation**
+
+```python
+# Multiple tasks can run concurrently
+# Each with its own isolated state and context
+tasks = [
+    agent.add_task("Task from Slack", source="slack"),
+    agent.add_task("Task from Web", source="web_ui"),
+    agent.add_task("Task from API", source="rest_api")
+]
+
+# xpander.ai ensures:
+# - No state contamination between tasks
+# - Proper resource allocation
+# - Consistent tool access per state
+```
+
+4. **Source-Specific State Handling**
+
+```python
+# Different sources may require different state machines
+agent.add_task(
+    input="Process data",
+    source_config={
+        "type": "slack",
+        "state_machine": "interactive",  # Handles user interactions
+        "timeout": 3600  # Long-running tasks
+    }
+)
+
+agent.add_task(
+    input="Quick analysis",
+    source_config={
+        "type": "api",
+        "state_machine": "batch",  # Optimized for batch processing
+        "timeout": 300  # Short-lived tasks
+    }
+)
+```
+
+5. **Task Recovery and Persistence**
+
+```python
+# xpander.ai automatically handles:
+# - Task interruptions
+# - System restarts
+# - Network issues
+# - Session timeouts
+
+# Tasks can be resumed from their last valid state
+interrupted_tasks = agent.get_interrupted_tasks()
+for task in interrupted_tasks:
+    agent.resume_task(task.id)  # State and context automatically restored
+```
+
+### State Management Details
+
+The xpander.ai platform handles several key aspects automatically:
+
+1. **State Transitions**
+   - Automatically determines when to switch between agents
+   - Preserves context across transitions
+   - Manages tool access permissions per state
+
+2. **Multi-Agent Orchestration**
+   - Schedules appropriate agents based on task requirements
+   - Maintains conversation context across agent switches
+   - Handles parallel execution when possible
+
+3. **Context Management**
+   - Preserves memory and context between state transitions
+   - Manages tool availability based on current state
+   - Ensures consistent execution across state changes
+
+4. **Execution Flow**
+   - Validates tool calls against state permissions
+   - Manages agent scheduling and transitions
+   - Handles error states and recovery
+
+## License
+
+Apache License 2.0 - See [LICENSE](LICENSE) for details.
