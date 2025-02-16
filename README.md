@@ -36,16 +36,16 @@ This repository contains examples, templates, and best practices for building an
 
 ```
 .
-├── Getting-Started/
-│   ├── connect-existing-agent/    # Guide for existing agents
-│   ├── create-new-agent/         # Templates for new agents
-│   └── configuration/            # Platform configuration
+├── Getting-Started/  # Notebooks for getting started with xpander.ai
 ├── Samples/
-│   ├── Frameworks/              # Framework integrations
+│   ├── Frameworks/           # Framework integrations
 │   │   ├── chainlit/           # Chainlit examples
 │   │   └── langchain/          # LangChain examples
-│   └── LLM-Providers/          # LLM configuration examples
-└── Use-Cases/                   # Industry-specific implementations
+│   └── LLM-Providers/        # LLM configuration examples
+│   │   ├── amazon/              # Amazon Bedrock examples
+│   │   ├── openai/           # OpenAI examples
+│   │   └── nvidia/          # Nvidia examples
+└── Use-Cases/               # Industry-specific implementations
 ```
 
 ## Quick Start
