@@ -2,7 +2,7 @@ xpander-sdk
 jupyter
 PyYAML==6.0.2
 colorama==0.4.6
-streamlit==1.39.0
+streamlit
 fastapi
 uvicorn
 boto3
@@ -10,3 +10,6 @@ openai
 anthropic
 python-dotenv
 loguru
+xpander-utils
+smolagents
+llama_index
