@@ -1,0 +1,3 @@
+xpander-utils
+chainlit
+openai
