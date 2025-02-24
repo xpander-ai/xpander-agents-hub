@@ -13,3 +13,4 @@ loguru
 xpander-utils
 smolagents
 llama_index
+chainlit
