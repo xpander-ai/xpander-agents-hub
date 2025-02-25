@@ -1,0 +1,16 @@
+# Python General
+python-dotenv
+
+# XPANDER
+xpander_utils
+xpander-sdk
+
+# CHAINLIT
+chainlit
+
+# LLMs
+openai
+
+# DATA
+llama-index-llms-openai
+llama-index
