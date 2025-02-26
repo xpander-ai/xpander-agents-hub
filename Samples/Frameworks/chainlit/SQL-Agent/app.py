@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List
+from typing import Callable, Dict, List
 from dotenv import load_dotenv
 from llama_index.llms.openai import AsyncOpenAI
 from llama_index.core.query_engine import NLSQLTableQueryEngine
@@ -50,7 +50,7 @@ city_stats_db_tool = [{
 }]
 
 local_tools_list = [tool['declaration'] for tool in city_stats_db_tool] # helper
-local_tools_by_name = {} # helper
+local_tools_by_name: Dict[str, Callable] = {} # helper
 
 for tool in city_stats_db_tool:
     local_tools_by_name[tool['declaration']['function']['name']] = tool['fn']
@@ -101,29 +101,7 @@ async def main(message: cl.Message):
         
         # has tool calls, add to memory, run & run completion
         if len(tool_calls) != 0:
-            xpander.process_tool_calls(tool_calls=tool_calls)
-            pending_local_tool_execution = XpanderClient.retrieve_pending_local_tool_calls(tool_calls=tool_calls)
-            local_tools_results = []
-            # iterate local tools and run them
-            for tc in pending_local_tool_execution:
-                # create result
-                tool_call_result = ToolCallResult(function_name=tc.name,tool_call_id=tc.tool_call_id,payload=tc.payload)
-                try:
-                    if tc.name in local_tools_by_name:
-                        tool_call_result.is_success = True
-                        tool_call_result.result = local_tools_by_name[tc.name](**tc.payload)
-                    else:
-                        raise Exception(f"Local Tool {tc.name} not found!")
-                except Exception as e:
-                    tool_call_result.is_success = False
-                    tool_call_result.is_error = True
-                    tool_call_result.result = str(e)
-                finally:
-                    local_tools_results.append(tool_call_result)
-            
-            # report the execution result to the memory
-            if len(local_tools_results) != 0:
-                xpander.agent.memory.add_tool_call_results(tool_call_results=local_tools_results)
+            xpander.process_tool_calls(tool_calls=tool_calls, local_tools=local_tools_by_name)
         else: # no tools, break
             break
 
