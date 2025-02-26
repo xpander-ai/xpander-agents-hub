@@ -1,11 +1,10 @@
 import os
-from typing import Callable, Dict, List
+from typing import Callable, Dict
 from dotenv import load_dotenv
 from llama_index.llms.openai import AsyncOpenAI
 from llama_index.core.query_engine import NLSQLTableQueryEngine
 from db import sql_database
 from xpander_utils.sdk.adapters import ChainlitAdapter
-from xpander_sdk import XpanderClient, ToolCallResult
 import chainlit as cl
 
 load_dotenv()
