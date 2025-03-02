@@ -1,6 +1,4 @@
 
-from llama_index.core import SQLDatabase
-
 from sqlalchemy import (
     create_engine,
     MetaData,
@@ -8,7 +6,6 @@ from sqlalchemy import (
     Column,
     String,
     Integer,
-    select,
 )
 
 engine = create_engine("sqlite:///:memory:")
@@ -25,9 +22,6 @@ city_stats_table = Table(
 )
 metadata_obj.create_all(engine)
 
-sql_database = SQLDatabase(engine, include_tables=["city_stats"])
-
-sql_database = SQLDatabase(engine, include_tables=["city_stats"])
 from sqlalchemy import insert
 
 rows = [
