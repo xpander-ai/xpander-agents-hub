@@ -14,3 +14,7 @@ openai
 # DATA
 llama-index-llms-openai
 llama-index
+
+# SQL
+sqlalchemy
+sqlalchemy-bigquery

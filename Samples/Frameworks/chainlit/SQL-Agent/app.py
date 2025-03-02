@@ -16,62 +16,64 @@ from xpander_utils.sdk.adapters import ChainlitAdapter
 import chainlit as cl
 
 ## Database
-from db import engine
+from sqlalchemy import create_engine, text
+
+engine = create_engine('bigquery://', credentials_path='./google-service-account.json')
 
 ## Environment Variables
 load_dotenv()
 
 ## xpander.ai
-xpander_api_key = os.environ.get("XPANDER_API_KEY","") 
-xpander_agent_id = os.environ.get("XPANDER_AGENT_ID", "") 
+xpander_api_key = os.environ.get("VIM_API_KEY","") 
+xpander_agent_id = os.environ.get("VIM_AGENT_ID", "") 
 openai_key = os.environ.get("OPENAI_API_KEY", "") 
 
 ## LLMs
 chat_llm = AsyncOpenAI(api_key=openai_key)
-agent_llm = OpenAI(api_key=openai_key)
+agent_llm = OpenAI(api_key=openai_key,model="gpt-4o")
 
 ## Database
-sql_database = SQLDatabase(engine, include_tables=["city_stats"])
+sql_database = SQLDatabase(engine)
 
 ## Query Engine (Llama Index)
 query_engine = NLSQLTableQueryEngine(
-    sql_database=sql_database, tables=["city_stats"], llm=agent_llm
+    sql_database=sql_database, llm=agent_llm
 )
 
-## City Stats Database function (loaded into the AI Agent)
-def city_stats_db_function(query: str) -> str:
+## BigQuery Database function (loaded into the AI Agent)
+def bigquery_db_function(query: str) -> str:
     """
     Query the database using natural language and return the results
     """
     response = query_engine.query(query)
     return response.response
 
-## City Stats Database Function Scheme (loaded into the AI Agent)
-city_stats_db_tool = [{
+## BigQuery Database Function Scheme (loaded into the AI Agent)
+bigquery_db_tool = [{
     "declaration": {
         "type": "function",
         "function": {
             "name": "query_database",
-            "description": "Query the city statistics database using natural language",
+            "description": "Retrieve structured data from a BigQuery database by executing an SQL query. Use this function when the user requests specific data that is not readily available.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Natural language query about city statistics"
+                        "description": "A SQL query or a natural language query that can be translated into SQL for execution on BigQuery."
                     }
                 },
                 "required": ["query"]
             }
         }
     },
-    "fn": city_stats_db_function
+    "fn": bigquery_db_function
 }]
 
-## Helper function to load the city stats database tool into the AI Agent
-local_tools_list = [tool['declaration'] for tool in city_stats_db_tool] # helper
+## Helper function to load the BigQuery database tool into the AI Agent
+local_tools_list = [tool['declaration'] for tool in bigquery_db_tool] # helper
 local_tools_by_name: Dict[str, Callable] = {} # helper
-for tool in city_stats_db_tool:
+for tool in bigquery_db_tool:
     local_tools_by_name[tool['declaration']['function']['name']] = tool['fn']
 
 ##  Instrument the OpenAI client to the Chainlit session
