@@ -1,10 +1,8 @@
 import os
-from typing import Dict, List
 from dotenv import load_dotenv
 
 from openai import AsyncOpenAI
 from xpander_utils.sdk.adapters import ChainlitAdapter
-from xpander_sdk import ToolCall,ToolCallType
 import chainlit as cl
 
 load_dotenv()
