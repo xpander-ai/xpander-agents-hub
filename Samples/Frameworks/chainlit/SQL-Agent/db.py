@@ -1,40 +1,62 @@
 # This file is a demo file for using sqlite
-from sqlalchemy import (
+from sqlalchemy import ( ## pip install sqlalchemy
     create_engine,
     MetaData,
     Table,
     Column,
     String,
     Integer,
+    DateTime,
 )
+from datetime import datetime
 
 engine = create_engine("sqlite:///:memory:")
 metadata_obj = MetaData()
 
-# create city SQL table
-table_name = "city_stats"
-city_stats_table = Table(
+# Create file tracking table
+table_name = "file_tracking"
+file_tracking_table = Table(
     table_name,
     metadata_obj,
-    Column("city_name", String(16), primary_key=True),
-    Column("population", Integer),
-    Column("country", String(16), nullable=False),
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("timestamp", DateTime, default=datetime.utcnow, nullable=False),
+    Column("original_filename", String(255), nullable=False),
+    Column("original_download_url", String(1024), nullable=False),
+    Column("generated_filename", String(255), nullable=False),
+    Column("generated_download_url", String(1024), nullable=False),
 )
 metadata_obj.create_all(engine)
 
 from sqlalchemy import insert
 
-rows = [
-    {"city_name": "Toronto", "population": 2930000, "country": "Canada"},
-    {"city_name": "Tokyo", "population": 13960000, "country": "Japan"},
-    {
-        "city_name": "Chicago",
-        "population": 2679000,
-        "country": "United States",
-    },
-    {"city_name": "Seoul", "population": 9776000, "country": "South Korea"},
-]
-for row in rows:
-    stmt = insert(city_stats_table).values(**row)
+# Example of how to insert a file record
+def add_file_record(
+    original_filename: str,
+    original_download_url: str,
+    generated_filename: str,
+    generated_download_url: str,
+) -> int:
+    """
+    Add a new file record to the tracking database.
+    Returns the ID of the newly created record.
+    """
+    stmt = insert(file_tracking_table).values(
+        original_filename=original_filename,
+        original_download_url=original_download_url,
+        generated_filename=generated_filename,
+        generated_download_url=generated_download_url,
+    )
     with engine.begin() as connection:
-        cursor = connection.execute(stmt)
+        result = connection.execute(stmt)
+        return result.inserted_primary_key[0]
+
+# Example usage:
+if __name__ == "__main__":
+    # Example record
+    record_id = add_file_record(
+        original_filename="example.pdf",
+        original_download_url="https://example.com/files/original.pdf",
+        generated_filename="processed_example.pdf",
+        generated_download_url="https://example.com/files/processed.pdf"
+    )
+    print(f"Added file record with ID: {record_id}")
