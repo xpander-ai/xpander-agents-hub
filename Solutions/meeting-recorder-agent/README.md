@@ -11,7 +11,7 @@
 **A simple AI agent that records Google Meet meetings and tracks them automatically.**  
 Built with [xpander.ai](https://xpander.ai)
 
-[Key Features](#-key-features) • [Quick Start](#-quick-start) • [How It Works](#-how-it-works) • [Usage](#-usage) • [Monitoring](#-monitoring)
+[Key Features](#-key-features) • [Demo](#demo-using-the-xpander-agent-workbench-ui) • [Quick Start](#-quick-start) • [How It Works](#-how-it-works) • [Usage](#-usage) • [Monitoring](#-monitoring)
 
 </div>
 
@@ -22,7 +22,27 @@ Built with [xpander.ai](https://xpander.ai)
 - 📝 **Content Generation** - Creates transcripts and downloadable video files
 - 📅 **Calendar Integration** - Shows your calendar events with meeting statuses
 
+## DEMO (Using the xpander Agent Workbench UI)
+
+<div align="center">
+  <img src="static/images/screenshots/2025-04-12-13-31-22.png" alt="Meeting Recorder Demo 1" width="800">
+  <p><em>Ask the agent to record a new meeting by providing the Google Meet URL</em></p>
+  
+  <img src="static/images/screenshots/2025-04-12-13-30-49.png" alt="Meeting Recorder Demo 2" width="800">
+  <p><em>Approve the recording bot to join your Google Meet session</em></p>
+  
+  <img src="static/images/screenshots/2025-04-12-13-33-18.png" alt="Meeting Recorder Demo 3" width="800">
+  <p><em>Ask the agent to retrieve the meeting transcript and video recording</em></p>
+</div>
+
+<div align="center">
+  <img src="static/images/screenshots/2025-04-12-13-26-31.png" alt="Meeting Recorder Agent with Tools" width="800">
+  <p><em>Meeting Recorder Agent with all tools configured and ready to use</em></p>
+</div>
+
 ## 🚀 Quick Start
+
+This guide will help you set up and run the Meeting Recorder Agent. For a comprehensive introduction to building agents with Xpander.ai, check out the [Quickstart Workbench Guide](https://docs.xpander.ai/docs/01-get-started/02-getting-started-01-workbench).
 
 ### Prerequisites
 
@@ -57,6 +77,8 @@ You have two options to set up the agent on Xpander.ai:
 4. Once imported, navigate to your agent's settings
 5. Copy your **Agent ID** and **API Key** from the canvas
 
+Learn more about getting started with Xpander workbench in the [official documentation](https://docs.xpander.ai/docs/01-get-started/02-getting-started-01-workbench).
+
 #### Option 2: Manual Setup
 
 If you prefer to build the agent manually:
@@ -71,23 +93,7 @@ If you prefer to build the agent manually:
 4. Configure each tool with appropriate settings
 5. Save your agent and copy your **Agent ID** and **API Key** from the agent settings page
 
-### DEMO (Using the xpander Agent Workbench UI)
-
-<div align="center">
-  <img src="static/images/screenshots/2025-04-12-13-30-49.png" alt="Meeting Recorder Demo 1" width="800">
-  <p><em>Ask the agent to record a new meeting by providing the Google Meet URL</em></p>
-  
-  <img src="static/images/screenshots/2025-04-12-13-31-22.png" alt="Meeting Recorder Demo 2" width="800">
-  <p><em>Approve the recording bot to join your Google Meet session</em></p>
-  
-  <img src="static/images/screenshots/2025-04-12-13-33-18.png" alt="Meeting Recorder Demo 3" width="800">
-  <p><em>Ask the agent to retrieve the meeting transcript and video recording</em></p>
-</div>
-
-<div align="center">
-  <img src="static/images/screenshots/2025-04-12-13-26-31.png" alt="Meeting Recorder Agent with Tools" width="800">
-  <p><em>Meeting Recorder Agent with all tools configured and ready to use</em></p>
-</div>
+For detailed instructions on adding tools to your agent, refer to the [Adding Tools to Agents](https://docs.xpander.ai/docs/02-agent-builder/02-add-tools-to-agents) documentation.
 
 ### Configuration
 
