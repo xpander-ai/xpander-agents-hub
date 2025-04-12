@@ -9,6 +9,8 @@ class MeetingAgent:
     def __init__(self, openai_api_key, xpander_api_key, agent_id):
         self.agent_id = agent_id
         self.xpander_client = XpanderClient(api_key=xpander_api_key)
+        # When running locally
+        # self.xpander_client = XpanderClient(api_key="my-agent-controller-api-key", base_url="http://localhost:9991", organization_id="your-org-id")
         self.openai_client = OpenAI(api_key=openai_api_key)
     
     def run(self, prompt=None, recordings_manager=None):
