@@ -11,7 +11,7 @@
 **A simple AI agent that records Google Meet meetings and tracks them automatically.**  
 Built with [xpander.ai](https://xpander.ai)
 
-[Key Features](#key-features) • [Quick Start](#quick-start) • [How It Works](#how-it-works) • [Usage](#usage) • [FAQ](#faq)
+[Key Features](#-key-features) • [Quick Start](#-quick-start) • [How It Works](#-how-it-works) • [Usage](#-usage) • [Monitoring](#-monitoring)
 
 </div>
 
@@ -71,31 +71,60 @@ The agent uses three main components:
 
 ### Agent Tools
 
-The template includes four independent tools:
-
-#### 1. Check Recorder Status
-Queries the status of recording bots and retrieves information about recordings:
-- Shows if recordings are in progress or completed
-- Provides links to video, audio, and transcript downloads
-- Displays metadata like duration and participants
-
-#### 2. Create Meeting Recording Bot
-Creates and deploys a new bot to record a Google Meet session:
-- Accepts Google Meet URLs in any format
-- Automatically joins meetings using specified credentials
-- Creates a dedicated recorder ID for tracking
-
-#### 3. Send Email with Content
-Sends meeting summaries and recordings via email:
-- Sends transcript summaries to meeting participants
-- Attaches or links to recording files
-- Supports customized email templates
-
-#### 4. Get Calendar Events by ID
-Connects with your Google Calendar:
-- Fetches upcoming and past calendar events
-- Links calendar events to meeting recordings
-- Provides scheduling information for the agent
+<table>
+<tr>
+  <td width="25%" align="center">
+    <h4>🔎<br>Check Recorder Status</h4>
+  </td>
+  <td>
+    Queries the status of recording bots and retrieves information about recordings:
+    <ul>
+      <li>Shows if recordings are in progress or completed</li>
+      <li>Provides links to video, audio, and transcript downloads</li>
+      <li>Displays metadata like duration and participants</li>
+    </ul>
+  </td>
+</tr>
+<tr>
+  <td width="25%" align="center">
+    <h4>🤖<br>Create Recording Bot</h4>
+  </td>
+  <td>
+    Creates and deploys a new bot to record a Google Meet session:
+    <ul>
+      <li>Accepts Google Meet URLs in any format</li>
+      <li>Automatically joins meetings using specified credentials</li>
+      <li>Creates a dedicated recorder ID for tracking</li>
+    </ul>
+  </td>
+</tr>
+<tr>
+  <td width="25%" align="center">
+    <h4>📧<br>Send Email Content</h4>
+  </td>
+  <td>
+    Sends meeting summaries and recordings via email:
+    <ul>
+      <li>Sends transcript summaries to meeting participants</li>
+      <li>Attaches or links to recording files</li>
+      <li>Supports customized email templates</li>
+    </ul>
+  </td>
+</tr>
+<tr>
+  <td width="25%" align="center">
+    <h4>📅<br>Get Calendar Events</h4>
+  </td>
+  <td>
+    Connects with your Google Calendar:
+    <ul>
+      <li>Fetches upcoming and past calendar events</li>
+      <li>Links calendar events to meeting recordings</li>
+      <li>Provides scheduling information for the agent</li>
+    </ul>
+  </td>
+</tr>
+</table>
 
 ## 🔍 Usage
 
