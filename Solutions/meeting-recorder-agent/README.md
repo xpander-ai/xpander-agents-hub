@@ -107,11 +107,12 @@ XPANDER_AGENT_ID=your_agent_id
 
 ## 📚 How It Works
 
-The agent uses three main components:
+The agent uses two main components:
 
 1. **Main App (`app.py`)**: Coordinates everything and schedules checks
 2. **Meeting Agent (`meeting_agent.py`)**: Connects to xpander.ai to run the agent
-3. **Recordings Manager (`recordings.py`)**: Tracks meetings in `recording_ids.json`
+
+The agent leverages xpander.ai's built-in thread-based memory system to maintain conversation context and remember meeting details across sessions.
 
 ### Agent Tools
 
@@ -172,6 +173,8 @@ The agent uses three main components:
 
 ## 🔍 Usage
 
+### Basic Commands
+
 Check all your recorded meetings:
 
 ```bash
@@ -190,20 +193,74 @@ Check your calendar:
 python app.py "what's on my calendar"
 ```
 
-## 💾 Data Structure
+### Thread Management
 
-The agent stores meeting information in `recording_ids.json`:
+Continue the previous conversation (default behavior):
 
-```json
-{
-  "67593763-9093-4fd4-88df-98c8bc75600a": {
-    "url": "https://meet.google.com/dnj-wduu-goa"
-  },
-  "f4f81ac7-c28a-4831-8cfc-fa56e3c2b29c": {
-    "url": "https://meet.google.com/gcd-zuba-qar"
-  }
-}
+```bash
+# This will use the existing thread_id.txt file
+python app.py "what's the status of my recordings?"
 ```
+
+Start a completely new conversation thread:
+
+```bash
+# This will ask for confirmation if an existing thread is found
+python app.py --new-thread "please record a new meeting"
+```
+
+### Example Workflow
+
+1. **First run** - Record a meeting:
+   ```bash
+   python app.py "record meet.google.com/abc-defg-hij"
+   # This creates a new thread and stores its ID
+   ```
+
+2. **Later run** - Check recording status:
+   ```bash
+   python app.py "how's my recording going?"
+   # This continues the same thread, so the agent remembers the meeting
+   ```
+
+3. **Optional reset** - Start fresh:
+   ```bash
+   python app.py --new-thread "let's start tracking a different set of meetings"
+   # This creates a new thread with no memory of previous meetings
+   ```
+
+The agent will automatically:
+- Create a new thread if none exists
+- Continue with the existing thread when available
+- Ask for confirmation before overriding an existing thread
+
+## 💾 Thread-Based Memory System
+
+The agent uses xpander.ai's thread-based memory system instead of storing meeting data locally. Here's how it works:
+
+### How Threads Work
+- Each **thread** represents an ongoing conversation about meetings
+- The agent remembers all context within a thread, including:
+  - Meeting URLs you've shared
+  - Recording bot IDs and statuses
+  - Previous requests and interactions
+
+### Thread Management
+The application handles threads intelligently:
+
+1. **First Run**: Creates a new thread automatically and saves its ID to `thread_id.txt`
+2. **Subsequent Runs**: Loads the existing thread ID to continue the same conversation
+3. **With `--new-thread` Flag**: 
+   - If a thread already exists, asks for confirmation before replacing it
+   - If confirmed, creates a fresh thread with no previous context
+
+This approach provides several benefits:
+- **Persistent Memory**: The agent remembers all previous meetings across sessions
+- **Seamless Continuity**: Pick up conversations exactly where you left off
+- **Simple Storage**: Only the thread ID needs to be stored locally
+- **Clean Reset Option**: Start fresh when needed with the `--new-thread` flag
+
+For example, if you record a meeting in one session, you can ask about its status in a later session, and the agent will remember all the details as long as you're using the same thread.
 
 ## 📊 Example Output
 

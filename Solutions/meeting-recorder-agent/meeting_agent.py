@@ -13,7 +13,7 @@ class MeetingAgent:
         # self.xpander_client = XpanderClient(api_key="my-agent-controller-api-key", base_url="http://localhost:9991", organization_id="your-org-id")
         self.openai_client = OpenAI(api_key=openai_api_key)
     
-    def run(self, prompt=None, recordings_manager=None):
+    def run(self, prompt=None, recordings_manager=None, thread_id=None):
         """Run the agent with the given prompt"""
         # Prepare agent task
         task = prompt or f"Now is {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. Please check the status of all recorded meetings."
@@ -24,15 +24,21 @@ class MeetingAgent:
             if recordings_info:
                 task = f"{task}\n\nHere are the all the recording bot IDs:\n{recordings_info}"
 
-        print(f"Running agent to monitor changes in the recordings DB or get a new task from the user")
+        print(f"Running agent to monitor changes or get a new task from the user")
         print(f"Agent prompt: \n\n{task}\n\n")
         print("-" * 60)
         
         # Get and run the agent
         agent = self.xpander_client.agents.get(agent_id=self.agent_id)
-        agent.add_task(task)
-        agent.memory.init_messages(input=agent.execution.input_message, instructions=agent.instructions)
         
+        # Create a new task (this will use the provided thread_id if available)
+        if thread_id:
+            print(f"Continuing conversation in thread: {thread_id}")
+            agent.add_task(input=task, thread_id=thread_id)
+        else:
+            print("Starting a new conversation thread")
+            agent.add_task(input=task)
+                
         # Initialize token tracking and timing
         execution_tokens = Tokens(worker=LLMTokens(completion_tokens=0, prompt_tokens=0, total_tokens=0))
         execution_start_time = time.perf_counter()
@@ -81,8 +87,10 @@ class MeetingAgent:
         # Process results
         execution_end_time = time.perf_counter()
         result = agent.retrieve_execution_result()
+        thread_id = result.memory_thread_id
+        print(f"Your thread ID is: {thread_id}")
         result_text = result.result
-        
+    
         # Report execution metrics to Xpander
         agent.report_execution_metrics(
             llm_tokens=execution_tokens,
@@ -93,8 +101,9 @@ class MeetingAgent:
         print(f"Result: {result_text}")
         print(f"Execution duration: {execution_end_time - execution_start_time:.2f} seconds")
         
-        # Process recordings if manager provided
+        # Process recordings if manager provided (legacy support)
         if recordings_manager:
             recordings_manager.process_results(result_text)
             
-        return result_text 
+        # Return both the result text and thread ID
+        return result_text, thread_id 
