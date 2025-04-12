@@ -1,8 +1,8 @@
 <div align="center">
   <h1>Meeting Recorder Agent</h1>
 
-  <img src="static/images/screenshots/Purple Logo White text.png" width="400" alt="Xpander.ai Logo (Dark Mode)" align="center" #gh-dark-mode-only>
-  <img src="static/images/screenshots/Purple Logo Black Text.png" width="400" alt="Xpander.ai Logo (Light Mode)" align="center" #gh-light-mode-only>
+  ![Xpander.ai Logo (Dark Mode)](static/images/screenshots/Purple%20Logo%20White%20text.png#gh-dark-mode-only)
+  ![Xpander.ai Logo (Light Mode)](static/images/screenshots/Purple%20Logo%20Black%20Text.png#gh-light-mode-only)
 
   <p>
     A simple AI agent that records Google Meet meetings and tracks them automatically.<br>
