@@ -1,18 +1,14 @@
-
-<p align="center">
+<div align="center">
   <h1>Meeting Recorder Agent</h1>
 
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="static/images/screenshots/Purple Logo White text.png" width="400">
-    <source media="(prefers-color-scheme: light)" srcset="static/images/screenshots/Purple Logo Black Text.png" width="400">
-    <img alt="Xpander.ai Logo" src="static/images/screenshots/Purple Logo Black Text.png" width="400">
-  </picture>
+  <img src="static/images/screenshots/Purple Logo White text.png" width="400" alt="Xpander.ai Logo (Dark Mode)" align="center" #gh-dark-mode-only>
+  <img src="static/images/screenshots/Purple Logo Black Text.png" width="400" alt="Xpander.ai Logo (Light Mode)" align="center" #gh-light-mode-only>
 
   <p>
     A simple AI agent that records Google Meet meetings and tracks them automatically.<br>
     Built with <a href="https://xpander.ai">Xpander.ai</a>
   </p>
-</p>
+</div>
 
 ## What It Does
 
