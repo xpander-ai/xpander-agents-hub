@@ -18,6 +18,14 @@
 
 This repository contains examples, templates, and best practices for building and managing AI agents using the xpander.ai platform. Whether you're migrating existing agents or building new ones, you'll find resources to help you leverage xpander.ai's state management capabilities.
 
+### Featured Solution: Meeting Recorder Agent
+
+Our [Meeting Recorder Agent](Solutions/meeting-recorder-agent/) is a production-ready solution that:
+- Automatically records Google Meet sessions
+- Generates transcripts and downloadable videos
+- Tracks meeting history and calendar events
+- Provides a complete demonstration of xpander.ai's capabilities
+
 ## What's Inside
 
 ### Getting Started
@@ -32,6 +40,12 @@ This repository contains examples, templates, and best practices for building an
 - LLM provider configurations
 - Real-world use cases and patterns
 
+### Solutions
+
+- Complete, production-ready agent implementations
+- End-to-end examples with real-world utility
+- Ready-to-deploy templates for common use cases
+
 ## Repository Structure
 
 ```
@@ -45,6 +59,8 @@ This repository contains examples, templates, and best practices for building an
 │   │   ├── amazon/              # Amazon Bedrock examples
 │   │   ├── openai/           # OpenAI examples
 │   │   └── nvidia/          # Nvidia examples
+├── Solutions/               # Complete, production-ready solutions
+│   └── meeting-recorder-agent/  # Agent for recording Google Meet sessions
 └── Use-Cases/               # Industry-specific implementations
 ```
 
