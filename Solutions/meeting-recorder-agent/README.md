@@ -35,11 +35,6 @@ Built with [xpander.ai](https://xpander.ai)
   <p><em>Ask the agent to retrieve the meeting transcript and video recording</em></p>
 </div>
 
-<div align="center">
-  <img src="static/images/screenshots/2025-04-12-13-26-31.png" alt="Meeting Recorder Agent with Tools" width="800">
-  <p><em>Meeting Recorder Agent with all tools configured and ready to use</em></p>
-</div>
-
 ## 🚀 Quick Start
 
 This guide will help you set up and run the Meeting Recorder Agent. For a comprehensive introduction to building agents with Xpander.ai, check out the [Quickstart Workbench Guide](https://docs.xpander.ai/docs/01-get-started/02-getting-started-01-workbench).
