@@ -1,0 +1,3 @@
+xpander_sdk
+openai
+dotenv
