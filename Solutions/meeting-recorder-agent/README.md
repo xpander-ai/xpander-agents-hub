@@ -45,6 +45,37 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### Setting Up Your Agent
+
+You have two options to set up the agent on Xpander.ai:
+
+#### Option 1: Use the Template (Recommended)
+
+1. Log in to your [Xpander.ai](https://xpander.ai) account
+2. Go to the [Meeting Recorder Template](https://canvas.xpander.ai/template/meeting-recorder)
+3. Click "Import Template" to add it to your workspace
+4. Once imported, navigate to your agent's settings
+5. Copy your **Agent ID** and **API Key** from the canvas
+
+#### Option 2: Manual Setup
+
+If you prefer to build the agent manually:
+
+1. Log in to your [Xpander.ai](https://xpander.ai) account
+2. Click "Create New Agent" from your dashboard
+3. Add the following tools to your agent:
+   - **Check Recorder Status** tool
+   - **Create Meeting Recording Bot** tool
+   - **Send Email with Content** tool
+   - **Get Calendar Events by ID** tool
+4. Configure each tool with appropriate settings
+5. Save your agent and copy your **Agent ID** and **API Key** from the agent settings page
+
+<div align="center">
+  <img src="static/images/screenshots/2025-04-12-13-26-31.png" alt="Meeting Recorder Agent with Tools" width="800">
+  <p><em>Meeting Recorder Agent with all tools configured and ready to use</em></p>
+</div>
+
 ### Configuration
 
 1. Copy the example environment file:
