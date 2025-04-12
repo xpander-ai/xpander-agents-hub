@@ -19,12 +19,6 @@ class MeetingAgent:
         # Prepare agent task
         task = prompt or f"Now is {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. Please check the status of all recorded meetings."
 
-        # Add existing recordings to the task if recordings_manager provided
-        if recordings_manager:
-            recordings_info = recordings_manager.get_recordings_info()
-            if recordings_info:
-                task = f"{task}\n\nHere are the all the recording bot IDs:\n{recordings_info}"
-
         print(f"Running agent to monitor changes or get a new task from the user")
         print(f"Agent prompt: \n\n{task}\n\n")
         print("-" * 60)
