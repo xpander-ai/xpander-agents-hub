@@ -2,8 +2,8 @@
 
 # Meeting Recorder Agent
 
-![Xpander.ai Logo (Dark Mode)](static/images/screenshots/Purple%20Logo%20White%20text.png#gh-dark-mode-only)
-![Xpander.ai Logo (Light Mode)](static/images/screenshots/Purple%20Logo%20Black%20Text.png#gh-light-mode-only)
+![xpander.ai Logo (Dark Mode)](static/images/screenshots/Purple%20Logo%20White%20text.png#gh-dark-mode-only)
+![xpander.ai Logo (Light Mode)](static/images/screenshots/Purple%20Logo%20Black%20Text.png#gh-light-mode-only)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
@@ -37,13 +37,13 @@ Built with [xpander.ai](https://xpander.ai)
 
 ## 🚀 Quick Start
 
-This guide will help you set up and run the Meeting Recorder Agent. For a comprehensive introduction to building agents with Xpander.ai, check out the [Quickstart Workbench Guide](https://docs.xpander.ai/docs/01-get-started/02-getting-started-01-workbench).
+This guide will help you set up and run the Meeting Recorder Agent. For a comprehensive introduction to building agents with xpander.ai, check out the [Quickstart Workbench Guide](https://docs.xpander.ai/docs/01-get-started/02-getting-started-01-workbench).
 
 ### Prerequisites
 
 - Python 3.8+
 - Google Meet account
-- [Xpander.ai](https://xpander.ai) account
+- [xpander.ai](https://xpander.ai) account
 
 ### Installation
 
@@ -62,31 +62,30 @@ pip install -r requirements.txt
 
 ### Setting Up Your Agent
 
-You have two options to set up the agent on Xpander.ai:
+You have two options to set up the agent on xpander.ai:
 
 #### Option 1: Use the Template (Recommended)
 
-1. Log in to your [Xpander.ai](https://xpander.ai) account
-2. Go to the [Meeting Recorder Template](https://canvas.xpander.ai/template/meeting-recorder)
+1. Log in to your [app.xpander.ai](https://app.xpander.ai) account
+2. Inside "Agents" Click on Templates and select "Meeting Recorder Template"
 3. Click "Import Template" to add it to your workspace
 4. Once imported, navigate to your agent's settings
 5. Copy your **Agent ID** and **API Key** from the canvas
 
-Learn more about getting started with Xpander workbench in the [official documentation](https://docs.xpander.ai/docs/01-get-started/02-getting-started-01-workbench).
+Learn more about getting started with xpander workbench in the [official documentation](https://docs.xpander.ai/docs/01-get-started/02-getting-started-01-workbench).
 
 #### Option 2: Manual Setup
 
 If you prefer to build the agent manually:
 
-1. Log in to your [Xpander.ai](https://xpander.ai) account
+1. Log in to your [app.xpander.ai](https://xpander.ai) account
 2. Click "Create New Agent" from your dashboard
 3. Add the following tools to your agent:
    - **Check Recorder Status** tool
    - **Create Meeting Recording Bot** tool
    - **Send Email with Content** tool
    - **Get Calendar Events by ID** tool
-4. Configure each tool with appropriate settings
-5. Save your agent and copy your **Agent ID** and **API Key** from the agent settings page
+4. Save your agent and copy your **Agent ID** and **API Key** from the agent settings page
 
 For detailed instructions on adding tools to your agent, refer to the [Adding Tools to Agents](https://docs.xpander.ai/docs/02-agent-builder/02-add-tools-to-agents) documentation.
 
@@ -111,7 +110,7 @@ XPANDER_AGENT_ID=your_agent_id
 The agent uses three main components:
 
 1. **Main App (`app.py`)**: Coordinates everything and schedules checks
-2. **Meeting Agent (`meeting_agent.py`)**: Connects to Xpander.ai to run the agent
+2. **Meeting Agent (`meeting_agent.py`)**: Connects to xpander.ai to run the agent
 3. **Recordings Manager (`recordings.py`)**: Tracks meetings in `recording_ids.json`
 
 ### Agent Tools
@@ -220,7 +219,7 @@ It responds with:
 Here are the events on your calendar and the status of the recording bots:
 
 ### Calendar Events:
-1. **Onboarding to Xpander**
+1. **Onboarding to xpander**
    - Date & Time: April 9, 2025, 17:31 - 18:31 UTC
    - [Event Link](https://www.google.com/calendar/event?eid=...)
 
@@ -240,11 +239,11 @@ Here are the events on your calendar and the status of the recording bots:
 
 You can use the xpander.ai platform to monitor the logs of the agent:
 
-![Xpander Dashboard](static/images/screenshots/2025-04-12-12-27-31.png)
+![xpander Dashboard](static/images/screenshots/2025-04-12-12-27-31.png)
 
-## 👨‍💻 Built With Xpander.ai
+## 👨‍💻 Built With xpander.ai
 
-[Xpander.ai](https://xpander.ai) is an AI Agent platform that lets developers build, test, and deploy AI agents quickly. It provides:
+[xpander.ai](https://xpander.ai) is an AI Agent platform that lets developers build, test, and deploy AI agents quickly. It provides:
 
 - **State Management**: Handles complex agent states so you don't have to
 - **Provider Independence**: Works with OpenAI, Anthropic, Gemini, and more
