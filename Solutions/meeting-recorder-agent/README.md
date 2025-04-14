@@ -49,8 +49,8 @@ This guide will help you set up and run the Meeting Recorder Agent. For a compre
 
 ```bash
 # Clone and set up
-git clone https://github.com/xpander-ai/meeting-recorder-agent.git
-cd meeting-recorder-agent
+git clone https://github.com/xpander-ai/xpander-agents-hub
+cd xpander-agents-hub/Solutions/meeting-recorder-agent
 
 # Create virtual environment
 python -m venv .venv
@@ -69,8 +69,8 @@ You have two options to set up the agent on xpander.ai:
 1. Log in to your [app.xpander.ai](https://app.xpander.ai) account
 2. Inside "Agents" Click on Templates and select "Meeting Recorder Template"
 3. Click "Import Template" to add it to your workspace
-4. Once imported, navigate to your agent's settings
-5. Copy your **Agent ID** and **API Key** from the canvas
+4. Once imported, from the AI Agent Workbench, click on the SDK Trigger
+5. Copy your **Agent ID** and **API Key**
 
 Learn more about getting started with xpander workbench in the [official documentation](https://docs.xpander.ai/docs/01-get-started/02-getting-started-01-workbench).
 
@@ -79,13 +79,14 @@ Learn more about getting started with xpander workbench in the [official documen
 If you prefer to build the agent manually:
 
 1. Log in to your [app.xpander.ai](https://xpander.ai) account
-2. Click "Create New Agent" from your dashboard
-3. Add the following tools to your agent:
+2. Click "Create New Agent" from your dashboard and skip the Planner step
+3. Add the following tools to your agent from the Built-in actions menu:
    - **Check Recorder Status** tool
    - **Create Meeting Recording Bot** tool
    - **Send Email with Content** tool
+4. Add the following tool to your agent from the Google Calendar app:
    - **Get Calendar Events by ID** tool
-4. Save your agent and copy your **Agent ID** and **API Key** from the agent settings page
+5. Save your agent and copy your **Agent ID** and **API Key** from the SDK Trigger
 
 For detailed instructions on adding tools to your agent, refer to the [Adding Tools to Agents](https://docs.xpander.ai/docs/02-agent-builder/02-add-tools-to-agents) documentation.
 
@@ -109,7 +110,7 @@ XPANDER_AGENT_ID=your_agent_id
 
 The agent uses two main components:
 
-1. **Main App (`app.py`)**: Coordinates everything and schedules checks
+1. **Main App (`app.py`)**: Coordinates everything and schedules checks every 5 minutes
 2. **Meeting Agent (`meeting_agent.py`)**: Connects to xpander.ai to run the agent
 
 The agent leverages xpander.ai's built-in thread-based memory system to maintain conversation context and remember meeting details across sessions.
@@ -175,7 +176,7 @@ The agent leverages xpander.ai's built-in thread-based memory system to maintain
 
 ### Basic Commands
 
-Check all your recorded meetings:
+Check all your recorded meetings (you will get 404 error here on the first run, because you didn't record anything yet)
 
 ```bash
 python app.py
