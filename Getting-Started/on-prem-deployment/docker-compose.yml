@@ -1,0 +1,40 @@
+services:
+  agent-controller:
+    image: xpanderaihub/agent-controller:latest
+    container_name: agent-controller
+    platform: linux/amd64 # ⬅️ Forces AMD64 architecture
+    restart: always
+    depends_on:
+      - redis
+    ports:
+      - '9991:9016'
+    environment:
+      DEPLOYMENT_MANAGER_URL: 'https://deployment-manager.xpander.ai'
+      DEPLOYMENT_MANAGER_API_KEY: 'my-deployment-manager-api-key' ## ⬅️ Get this from your workers management
+      AGENT_CONTROLLER_API_KEY: 'my-agent-controller-api-key'
+      REDIS_ENDPOINT: 'redis'
+      IS_XPANDER_CLOUD: 'false'
+      ORGANIZATION_ID: '33248bf0-e053-46bd-b241-4b46ac38b9b3'
+      AI_GATEWAY_URL: 'http://ai-gateway:9018'
+      AI_GATEWAY_API_KEY: 'my-ai-gateway-api-key'
+    networks:
+      - xpander-network
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server
+    volumes:
+      - redis-data:/data
+    networks:
+      - xpander-network
+
+networks:
+  xpander-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
