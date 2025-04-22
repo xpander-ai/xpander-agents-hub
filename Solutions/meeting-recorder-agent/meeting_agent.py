@@ -13,7 +13,7 @@ class MeetingAgent:
         # self.xpander_client = XpanderClient(api_key="my-agent-controller-api-key", base_url="http://localhost:9991", organization_id="your-org-id")
         self.openai_client = OpenAI(api_key=openai_api_key)
         self.agent = self.xpander_client.agents.get(agent_id=self.agent_id)
-    
+
     def run(self, prompt=None, recordings_manager=None, thread_id=None):
         """Run the agent with the given prompt"""
         # Prepare agent task
